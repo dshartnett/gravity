@@ -15,6 +15,7 @@ var CONST = {
 FPS:60,
 UPS:33,
 TIME_INTERVAL:1000,
+FRAME_MAX:30,
 
 CANVAS_WIDTH:960,
 CANVAS_HEIGHT:360,
@@ -32,21 +33,41 @@ C_P_FIRE:64
 };
 
 var key_down = {};
+$(window).keydown(function(key_code) {console.log("Key down: " + key_code.keyCode);/**/ key_down[key_code.keyCode]=true;});
+$(window).keyup(function(key_code) {console.log("Key up: " + key_code.keyCode);/**/ key_down[key_code.keyCode]=false;});
 
 function Timer()
 {
-	then:Date.now()
+	this.then = Date.now();
+	this.int_count = 0;
+
+	this.time_array = [];
+	this.time_array_index = 0;
+	this.frame_count = 0;
+	this.time_count = 0;
 }
 
 Timer.prototype = {
-	get interval(){var i = Date.now() - this.then; this.then = Date.now(); return i;}
+	get interval(){
+		var i = Date.now() - this.then;
+		this.then = Date.now();
+
+		this.time_array_index++;
+		if (this.time_array_index >= CONST.FRAME_MAX) this.time_array_index = 0;
+
+		if (this.frame_count >= CONST.FRAME_MAX) this.time_count -= this.time_array[this.time_array_index];
+		else this.frame_count++;
+
+		this.time_array[this.time_array_index] = i;
+
+		this.time_count += i;
+
+		this.int_count++;
+		return i;
+	},
+	get i_count(){return this.int_count;},
+	get frame_rate(){return 1000*this.frame_count/this.time_count;}
 };
-//date_then = Date.now();
-//setInterval(function(){time_interval = Date.now() - date_then;/*console.log(time_interval);/**/},CONST.TIME_INTERVAL);
-
-
-window.onkeydown = function(key_code) {console.log(key_code.keyCode);/**/ key_down[key_code.keyCode]=true;};
-window.onkeyup = function(key_code) {console.log(key_code.keyCode);/**/ key_down[key_code.keyCode]=false;};
 
 function Game()
 {
@@ -58,15 +79,15 @@ function Game()
 	
 	var draw_timer = new Timer();
 	var update_timer = new Timer();
-	var frame_count = 0;
-	var update_count = 0;
+	var interval_id;
 	var debug = true;
+	var quit = false;
 
 	this.initialize = function() {
 		canvas.appendTo("body");
 
 		self.update();
-		setInterval(self.update, 1000/CONST.UPS);
+		interval_id = setInterval(self.update, 1000/CONST.UPS);
 		self.draw();
 	};
 
@@ -77,16 +98,15 @@ function Game()
 		gradient.addColorStop(1,"black");
 		context.fillStyle = gradient;
 		
-		update_count++;
-		console.log("update " + update_timer.interval);
+		console.log("update interval: " + update_timer.interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
+		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
 	};
 
 	this.draw = function(){
-		request_id = window.requestAnimFrame(self.draw);
+		if (!quit) request_id = window.requestAnimFrame(self.draw);
 		context.fillRect(0,0,CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT);
 		
-		frame_count++;
-		console.log("draw " + draw_timer.interval);
+		console.log("draw interval: " + draw_timer.interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
 	};
 
 	return this;
