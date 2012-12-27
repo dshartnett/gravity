@@ -1,40 +1,42 @@
+(function () {
+
 "use strict";
 
-window.requestAnimFrame = (function()
+var CONST =
 {
+FPS: 60,
+UPS: 33,
+TIME_INTERVAL: 1000,
+FRAME_MAX: 30,
+
+CANVAS_WIDTH: 960,
+CANVAS_HEIGHT: 360,
+
+MAP_WIDTH: 10000,
+MAP_HEIGHT: 10000,
+
+C_MOVE_UP: 1,
+C_MOVE_DOWN: 2,
+C_ROTATE_CW: 4,
+C_ROTATE_CC: 8,
+C_S_RIGHT: 16,
+C_S_LEFT: 32,
+C_P_FIRE: 64
+};
+
+window.requestAnimFrame = (function () {
  return window.requestAnimationFrame
- || window.webkitRequestAnimationFrame
- || window.mozRequestAnimationFrame
- || window.oRequestAnimationFrame
- || window.msRequestAnimationFrame
- || function(callback){window.setTimeout(callback, 1000 / CONST.FPS);};
+ 					|| window.webkitRequestAnimationFrame
+ 					|| window.mozRequestAnimationFrame
+ 					|| window.oRequestAnimationFrame
+ 					|| window.msRequestAnimationFrame
+ 					|| function(callback){window.setTimeout(callback, 1000 / CONST.FPS);};
 }
 )();
 
-var CONST = {
-FPS:60,
-UPS:33,
-TIME_INTERVAL:1000,
-FRAME_MAX:30,
-
-CANVAS_WIDTH:960,
-CANVAS_HEIGHT:360,
-
-MAP_WIDTH:10000,
-MAP_HEIGHT:10000,
-
-C_MOVE_UP:1,
-C_MOVE_DOWN:2,
-C_ROTATE_CW:4,
-C_ROTATE_CC:8,
-C_S_RIGHT:16,
-C_S_LEFT:32,
-C_P_FIRE:64
-};
-
 var key_down = {};
-$(window).keydown(function(key_code) {console.log("Key down: " + key_code.keyCode);/**/ key_down[key_code.keyCode]=true;});
-$(window).keyup(function(key_code) {console.log("Key up: " + key_code.keyCode);/**/ key_down[key_code.keyCode]=false;});
+$(window).keydown(function (key_code) {console.log("Key down: " + key_code.keyCode);/**/ key_down[key_code.keyCode]=true;});
+$(window).keyup(function (key_code) {console.log("Key up: " + key_code.keyCode);/**/ key_down[key_code.keyCode]=false;});
 
 function Timer()
 {
@@ -83,7 +85,7 @@ function Game()
 	var debug = true;
 	var quit = false;
 
-	this.initialize = function() {
+	this.initialize = function () {
 		canvas.appendTo("body");
 
 		self.update();
@@ -91,7 +93,7 @@ function Game()
 		self.draw();
 	};
 
-	this.update = function(){
+	this.update = function () {
 		var gradient = context.createLinearGradient(0,0,0,CONST.MAP_HEIGHT);
 		gradient.addColorStop(0,"black");
 		gradient.addColorStop(.5,"white");
@@ -102,7 +104,7 @@ function Game()
 		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
 	};
 
-	this.draw = function(){
+	this.draw = function () {
 		if (!quit) request_id = window.requestAnimFrame(self.draw);
 		context.fillRect(0,0,CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT);
 		
@@ -119,12 +121,12 @@ function Player()
 	this.velocity_x = 0;
 	this.velocity_y = 0;
 	
-	this.update = function(){};
-	this.draw = function(){};
+	this.update = function () {};
+	this.draw = function () {};
 }
 
 var main_game = new Game();
 
 main_game.initialize();
 
-
+})();
