@@ -1,3 +1,5 @@
+"use strict";
+
 window.requestAnimFrame = (function()
 {
  return window.requestAnimationFrame
@@ -29,11 +31,19 @@ C_S_LEFT:32,
 C_P_FIRE:64
 };
 
-key_down = {};
+var key_down = {};
 
-time_interval = 0;
-date_then = Date.now();
-setInterval(function(){time_interval = Date.now() - date_then;/*console.log(time_interval);/**/},CONST.TIME_INTERVAL);
+function Timer()
+{
+	then:Date.now()
+}
+
+Timer.prototype = {
+	get interval(){var i = Date.now() - this.then; this.then = Date.now(); return i;}
+};
+//date_then = Date.now();
+//setInterval(function(){time_interval = Date.now() - date_then;/*console.log(time_interval);/**/},CONST.TIME_INTERVAL);
+
 
 window.onkeydown = function(key_code) {console.log(key_code.keyCode);/**/ key_down[key_code.keyCode]=true;};
 window.onkeyup = function(key_code) {console.log(key_code.keyCode);/**/ key_down[key_code.keyCode]=false;};
@@ -46,6 +56,8 @@ function Game()
 	var canvas = $("<canvas id='canvas_main' width='" + CONST.CANVAS_WIDTH + "' height='" + CONST.CANVAS_HEIGHT + "'>Update your browser :P</canvas>");
 	var context = canvas.get(0).getContext('2d');
 	
+	var draw_timer = new Timer();
+	var update_timer = new Timer();
 	var frame_count = 0;
 	var update_count = 0;
 	var debug = true;
@@ -66,7 +78,7 @@ function Game()
 		context.fillStyle = gradient;
 		
 		update_count++;
-		//console.log("update");
+		console.log("update " + update_timer.interval);
 	};
 
 	this.draw = function(){
@@ -74,11 +86,11 @@ function Game()
 		context.fillRect(0,0,CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT);
 		
 		frame_count++;
-		//console.log("draw");
+		console.log("draw " + draw_timer.interval);
 	};
 
 	return this;
-};
+}
 
 function Player()
 {
