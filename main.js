@@ -10,10 +10,10 @@ TIME_INTERVAL: 1000,
 FRAME_MAX: 30,
 
 CANVAS_WIDTH: 960,
-CANVAS_HEIGHT: 360,
+CANVAS_HEIGHT: 640,
 
-MAP_WIDTH: 10000,
-MAP_HEIGHT: 10000,
+MAP_WIDTH: 3000,
+MAP_HEIGHT: 3000,
 
 C_MOVE_UP: 1,
 C_MOVE_DOWN: 2,
@@ -76,8 +76,14 @@ function Game()
 	var self = this;
 	var request_id;
 	
-	var canvas = $("<canvas id='canvas_main' width='" + CONST.CANVAS_WIDTH + "' height='" + CONST.CANVAS_HEIGHT + "'>Update your browser :P</canvas>");
-	var context = canvas.get(0).getContext('2d');
+	var main_canvas = $("<canvas id='main_canvas' width='" + CONST.CANVAS_WIDTH + "' height='" + CONST.CANVAS_HEIGHT + "'>Update your browser :P</canvas>");
+	var main_context = main_canvas.get(0).getContext('2d');
+	
+	var background_canvas = $("<canvas id='background_canvas' width='" + CONST.MAP_WIDTH + "' height='" + CONST.MAP_HEIGHT + "'>Update your browser :P</canvas>");
+	var background_context = background_canvas.get(0).getContext('2d');
+	var background_img = new Image();
+	
+	var map_pos_x = 0, map_pos_y = 0;
 	
 	var draw_timer = new Timer();
 	var update_timer = new Timer();
@@ -86,19 +92,40 @@ function Game()
 	var quit = false;
 
 	this.initialize = function () {
-		canvas.appendTo("body");
-
-		self.update();
-		interval_id = setInterval(self.update, 1000/CONST.UPS);
-		self.draw();
+	
+		console.log("Generating background...");
+		var gradient = background_context.createLinearGradient(0,0,0,CONST.MAP_HEIGHT);
+		gradient.addColorStop(0,"black");
+		gradient.addColorStop(.3,"black");
+		gradient.addColorStop(.5,"white");
+		gradient.addColorStop(.7,"black");
+		gradient.addColorStop(1,"black");
+		background_context.fillStyle = gradient;
+		background_context.fillRect(0,0,CONST.MAP_WIDTH,CONST.MAP_HEIGHT);//*/
+		background_context.fillStyle = 'white';
+		
+		console.log("Generating star field...");
+		for (var i = 0; i < 10000; i++){
+			var yp = Math.floor(1 + 2*Math.random()); 
+			background_context.fillRect(Math.random()*CONST.MAP_WIDTH, Math.random()*CONST.MAP_HEIGHT, yp, yp);
+		}
+		
+		console.log("Loading image to memory...");
+		background_img.src = background_canvas.get(0).toDataURL();
+		
+		background_img.onload = function(){
+			main_canvas.appendTo("body");
+			self.update();
+			interval_id = setInterval(self.update, 1000/CONST.UPS);
+			self.draw();
+		}
 	};
 
 	this.update = function () {
-		var gradient = context.createLinearGradient(0,0,0,CONST.MAP_HEIGHT);
-		gradient.addColorStop(0,"black");
-		gradient.addColorStop(.5,"white");
-		gradient.addColorStop(1,"black");
-		context.fillStyle = gradient;
+		if(key_down[37]) map_pos_x -= map_pos_x>0?10:0;
+		if(key_down[38]) map_pos_y -= map_pos_y>0?10:0;
+		if(key_down[39]) map_pos_x += map_pos_x<(CONST.MAP_WIDTH-CONST.CANVAS_WIDTH)?10:0;
+		if(key_down[40]) map_pos_y += map_pos_y<(CONST.MAP_HEIGHT-CONST.CANVAS_HEIGHT)?10:0;
 		
 		console.log("update interval: " + update_timer.interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
 		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
@@ -106,7 +133,8 @@ function Game()
 
 	this.draw = function () {
 		if (!quit) request_id = window.requestAnimFrame(self.draw);
-		context.fillRect(0,0,CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT);
+		
+		main_context.drawImage(background_img, map_pos_x, map_pos_y, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT, 0, 0, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT);		
 		
 		console.log("draw interval: " + draw_timer.interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
 	};
