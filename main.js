@@ -19,6 +19,9 @@ BACKGROUND_STARS0: 10000,
 BACKGROUND_STARS1: 1000,
 
 PLAYER_RADIUS: 20,
+PLAYER_SHIELD_RADIUS: 26,
+PLAYER_SHIELD_FADE_MAX: 700,
+PLAYER_WING_ANGLE: 5*Math.PI/6,
 PLAYER_ACCELERATION: 0.0007,
 PLAYER_ROTATE_SPEED: 1/360,
 PLAYER_FRICTION: 0.001,
@@ -192,6 +195,8 @@ function Player()
 	this.v_x = 0;
 	this.v_y = 0;
 	this.angle = 0;
+	this.wing_angle = CONST.PLAYER_WING_ANGLE;
+	this.shield_fade = 0;
 	this.radius = CONST.PLAYER_RADIUS;
 	this.team_color = 'red';
 	this.move_command_state = 0;
@@ -199,6 +204,8 @@ function Player()
 	this.update = function (interval) {
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
 		this.v_y -= CONST.PLAYER_FRICTION*this.v_y*interval;
+
+		if (this.shield_fade > 0) this.shield_fade -= interval;
 
 		if (this.move_command_state & CONST.COMMAND_ROTATE_CC) this.angle -= CONST.PLAYER_ROTATE_SPEED*interval;
 		if (this.move_command_state & CONST.COMMAND_MOVE_FORWARD)
@@ -238,10 +245,14 @@ function Player()
 			{this.map_pos_y = CONST.MAP_HEIGHT - CONST.CANVAS_HEIGHT; this.canvas_pos_y = CONST.CANVAS_HEIGHT - CONST.MAP_HEIGHT + this.pos_y;}
 		else {this.map_pos_y = this.pos_y - CONST.CANVAS_HEIGHT/2; this.canvas_pos_y = CONST.CANVAS_HEIGHT/2;}
 
-		if (this.pos_x - this.radius <= 0) {this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
-		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH) {this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius;}
-		if (this.pos_y - this.radius <= 0) {this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = this.radius;}
-		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT) {this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius;}
+		if (this.pos_x - this.radius <= 0)
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH)
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+		if (this.pos_y - this.radius <= 0)
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
 
 		this.move_command_state = 0;
 	};
@@ -256,9 +267,9 @@ function Player()
 		
 		context.beginPath();
 		context.moveTo(this.radius,0);
-		context.lineTo(this.radius*Math.cos(5*Math.PI/6),this.radius*Math.sin(5*Math.PI/6));
+		context.lineTo(this.radius*Math.cos(this.wing_angle),this.radius*Math.sin(this.wing_angle));
 		context.lineTo(0,0);
-		context.lineTo(this.radius*Math.cos(7*Math.PI/6),this.radius*Math.sin(7*Math.PI/6));
+		context.lineTo(this.radius*Math.cos(-this.wing_angle),this.radius*Math.sin(-this.wing_angle));
 		context.lineTo(this.radius,0);
 		context.closePath();
 	
@@ -268,6 +279,20 @@ function Player()
 		context.strokeStyle = "gray";
 		context.stroke();
 
+		if (this.shield_fade > 0)
+		{
+			context.beginPath();
+			context.arc(0,0,CONST.PLAYER_SHIELD_RADIUS,0,2*Math.PI,false);
+			gradient = context.createRadialGradient(0, 0, 0, 0, 0, this.radius*2);
+			gradient.addColorStop(0, "transparent");
+			gradient.addColorStop(1-this.shield_fade/CONST.PLAYER_SHIELD_FADE_MAX, "cyan");
+			gradient.addColorStop(1, "transparent");
+			context.fillStyle = gradient;
+			context.fill();
+//			context.lineWidth = 0;
+//			context.strokeStyle = "white";
+			context.stroke();
+		}
 		context.restore();
 	};
 }
