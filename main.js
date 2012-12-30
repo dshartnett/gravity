@@ -19,7 +19,7 @@ BACKGROUND_STARS0: 10000,
 BACKGROUND_STARS1: 1000,
 
 PLAYER_RADIUS: 20,
-PLAYER_ACCELERATION: 0.0005,
+PLAYER_ACCELERATION: 0.0007,
 PLAYER_ROTATE_SPEED: 1/360,
 PLAYER_FRICTION: 0.001,
 PLAYER_WALL_LOSS: 0.5,
@@ -28,8 +28,8 @@ COMMAND_ROTATE_CC: 1,
 COMMAND_MOVE_FORWARD: 2,
 COMMAND_ROTATE_CW: 4,
 COMMAND_MOVE_BACKWARD: 8,
-COMMAND_S_RIGHT: 16,
-COMMAND_S_LEFT: 32,
+COMMAND_STRAFE_RIGHT: 16,
+COMMAND_STRAFE_LEFT: 32,
 COMMAND_P_FIRE: 64
 };
 
@@ -44,7 +44,7 @@ window.requestAnimFrame = (function () {
 )();
 
 var key_down = {};
-$(window).keydown(function (key_code) {/*console.log("Key down: " + key_code.keyCode);/**/ key_down[key_code.keyCode]=true;});
+$(window).keydown(function (key_code) {console.log("Key down: " + key_code.keyCode);/**/ key_down[key_code.keyCode]=true;});
 $(window).keyup(function (key_code) {/*console.log("Key up: " + key_code.keyCode);/**/ key_down[key_code.keyCode]=false;});
 
 function Timer()
@@ -82,6 +82,9 @@ Timer.prototype = {
 
 function Background ()
 {
+	var self = this;
+	this.background_ready = false;
+
 	var background_canvas = $("<canvas id='background_canvas' width='" + CONST.MAP_WIDTH + "' height='" + CONST.MAP_HEIGHT + "'>Update your browser :P</canvas>");
 	var background_context = background_canvas.get(0).getContext('2d');
 	var background_img = new Image();
@@ -110,8 +113,10 @@ function Background ()
 		console.log("Loading background to memory...");
 		background_img.src = background_canvas.get(0).toDataURL();
 
-		background_img.onload = function() {console.log("Background loaded.");};
+		background_img.onload = function() {self.ready();};
 	}
+
+	this.ready = function () {console.log("Background loaded."); this.background_ready = true;}
 
 	this.draw = function (context, pos_x, pos_y) {
 		context.drawImage(background_img, pos_x, pos_y, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT, 0, 0, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT);
@@ -154,6 +159,8 @@ function Game()
 		if(key_down[38]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_FORWARD;
 		if(key_down[39]) player_arr[0].move_command_state += CONST.COMMAND_ROTATE_CW;
 		if(key_down[40]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_BACKWARD;
+		if(key_down[69]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_LEFT;
+		if(key_down[82]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
 		//console.log(player_arr[0].move_command_state);
 		
 		var interval = update_timer.interval;
@@ -204,6 +211,16 @@ function Player()
 		{
 			this.v_x -= CONST.PLAYER_ACCELERATION*interval*Math.cos(this.angle);
 			this.v_y -= CONST.PLAYER_ACCELERATION*interval*Math.sin(this.angle);
+		}
+		if (this.move_command_state & CONST.COMMAND_STRAFE_LEFT)
+		{
+			this.v_x += CONST.PLAYER_ACCELERATION*interval*Math.sin(this.angle);
+			this.v_y -= CONST.PLAYER_ACCELERATION*interval*Math.cos(this.angle);
+		}
+		if (this.move_command_state & CONST.COMMAND_STRAFE_RIGHT)
+		{
+			this.v_x -= CONST.PLAYER_ACCELERATION*interval*Math.sin(this.angle);
+			this.v_y += CONST.PLAYER_ACCELERATION*interval*Math.cos(this.angle);
 		}
 
 		this.pos_x += this.v_x*interval;
