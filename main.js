@@ -9,19 +9,27 @@ UPS: 33,
 TIME_INTERVAL: 1000,
 FRAME_MAX: 30,
 
-CANVAS_WIDTH: 960,
-CANVAS_HEIGHT: 320,
+CANVAS_WIDTH: 1280,
+CANVAS_HEIGHT: 640,
 
-MAP_WIDTH: 3000,
+MAP_WIDTH: 6000,
 MAP_HEIGHT: 3000,
 
 BACKGROUND_STARS0: 10000,
 BACKGROUND_STARS1: 1000,
+BACKGROUND_PLANETS0: 10,
+BACKGROUND_PLANET_SIZE_MIN: 30,
+BACKGROUND_PLANET_SIZE_RANGE: 20,
+
+PARTICLE_SIZE: 2,
+PARTICLE_WALL_LOSS: 1,
 
 PLAYER_RADIUS: 20,
 PLAYER_SHIELD_RADIUS: 26,
 PLAYER_SHIELD_FADE_MAX: 700,
 PLAYER_WING_ANGLE: 5*Math.PI/6,
+PLAYER_WING_ANGLE_SIN: 20*Math.sin(5*Math.PI/6),
+PLAYER_WING_ANGLE_COS: 20*Math.cos(5*Math.PI/6),
 PLAYER_ACCELERATION: 0.0007,
 PLAYER_ROTATE_SPEED: 1/360,
 PLAYER_FRICTION: 0.001,
@@ -93,13 +101,14 @@ function Background ()
 	var background_img = new Image();
 
 	var sf_0 = [];
+	var pf_0 = [];
 
 	this.initialize = function () {
 		console.log("Generating background...");
 		var gradient = background_context.createLinearGradient(0,0,0,CONST.MAP_HEIGHT);
 		gradient.addColorStop(0.0,"black");
 		gradient.addColorStop(0.3,"black");
-		gradient.addColorStop(0.5,"white");
+		gradient.addColorStop(0.5,"purple");
 		gradient.addColorStop(0.7,"black");
 		gradient.addColorStop(1.0,"black");
 		background_context.fillStyle = gradient;
@@ -113,6 +122,11 @@ function Background ()
 			background_context.fillRect(sf_0[i].x, sf_0[i].y, sf_0[i].star_size, sf_0[i].star_size);
 		}
 		
+		for (var i = 0; i < CONST.BACKGROUND_PLANETS0; i++){
+			var planet = {x:Math.random()*CONST.MAP_WIDTH, y: Math.random()*CONST.MAP_HEIGHT, planet_radius:CONST.BACKGROUND_PLANET_SIZE_MIN + CONST.BACKGROUND_PLANET_SIZE_RANGE*Math.random()};
+			pf_0.push(planet);
+		}
+		
 		console.log("Loading background to memory...");
 		background_img.src = background_canvas.get(0).toDataURL();
 
@@ -123,64 +137,14 @@ function Background ()
 
 	this.draw = function (context, pos_x, pos_y) {
 		context.drawImage(background_img, pos_x, pos_y, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT, 0, 0, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT);
+		/*context.fillStyle = 'black';
+		context.fillRect(0,0,CONST.CANVAS_WIDTH,CONST.CANVAS_HEIGHT);
+		context.fillStyle = 'white';
+		for (var i = 0; i < CONST.BACKGROUND_STARS0; i++)
+			if (sf_0[i].x >= pos_x && sf_0[i].x <= pos_x + CONST.CANVAS_WIDTH && sf_0[i].y >= pos_y && sf_0[i].y <= pos_y + CONST.CANVAS_HEIGHT)
+				context.fillRect(sf_0[i].x - pos_x, sf_0[i].y - pos_y, sf_0[i].star_size, sf_0[i].star_size);
+		//*/
 	}
-}
-
-function Game()
-{
-	var self = this;
-	var request_id;
-	
-	var main_canvas = $("<canvas id='main_canvas' width='" + CONST.CANVAS_WIDTH + "' height='" + CONST.CANVAS_HEIGHT + "'>Update your browser :P</canvas>");
-	var main_context = main_canvas.get(0).getContext('2d');
-	
-	var map_pos_x = 0, map_pos_y = 0;
-
-	var background = new Background();
-	var player_arr = [];
-	
-	var draw_timer = new Timer();
-	var update_timer = new Timer();
-	var interval_id;
-	var debug = true;
-	var quit = false;
-
-	this.initialize = function () {
-
-		player_arr[0] = new Player();
-
-		background.initialize();
-
-		main_canvas.appendTo("body");
-		self.update();
-		interval_id = setInterval(self.update, 1000/CONST.UPS);
-		self.draw();
-	};
-
-	this.update = function () {
-		if(key_down[37]) player_arr[0].move_command_state += CONST.COMMAND_ROTATE_CC;
-		if(key_down[38]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_FORWARD;
-		if(key_down[39]) player_arr[0].move_command_state += CONST.COMMAND_ROTATE_CW;
-		if(key_down[40]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_BACKWARD;
-		if(key_down[69]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_LEFT;
-		if(key_down[82]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
-		//console.log(player_arr[0].move_command_state);
-		
-		var interval = update_timer.interval;
-		player_arr[0].update(interval);
-		//console.log("update interval: " + interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
-		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
-	};
-
-	this.draw = function () {
-		if (!quit) request_id = window.requestAnimFrame(self.draw);
-
-		background.draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);		
-		player_arr[0].draw(main_context);
-
-		//console.log("draw interval: " + draw_timer.interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
-	};
-
 	return this;
 }
 
@@ -267,9 +231,9 @@ function Player()
 		
 		context.beginPath();
 		context.moveTo(this.radius,0);
-		context.lineTo(this.radius*Math.cos(this.wing_angle),this.radius*Math.sin(this.wing_angle));
+		context.lineTo(CONST.PLAYER_WING_ANGLE_COS,CONST.PLAYER_WING_ANGLE_SIN);
 		context.lineTo(0,0);
-		context.lineTo(this.radius*Math.cos(-this.wing_angle),this.radius*Math.sin(-this.wing_angle));
+		context.lineTo(CONST.PLAYER_WING_ANGLE_COS,-CONST.PLAYER_WING_ANGLE_SIN);
 		context.lineTo(this.radius,0);
 		context.closePath();
 	
@@ -295,6 +259,91 @@ function Player()
 		}
 		context.restore();
 	};
+	return this;
+}
+
+function Particle(x,y,v_x,v_y,mass,charge,p_color)
+{
+	this.pos_x = x;
+	this.pos_y = y;
+	this.v_x = v_x;
+	this.v_y = v_y;
+	this.mass = mass;
+	this.charge = charge;
+	this.color = color;
+	this.size = CONST.PARTICLE_SIZE;
+	this.half_size = size/2;
+	
+	this.update = function(interval) {
+		this.pos_x += this.v_x*interval;
+		this.pos_y += this.v_y*interval;
+		
+		if (this.pos_x >= CONST.MAP_WIDTH) {this.pos_x = CONST.MAP_WIDTH - 1; this.v_x = -this.v_x*CONST.PARTICLE_WALL_LOSS;}
+		else if (this.pos_x <= 0) {this.pos_x = 1; this.v_x = -this.vX*CONST.PARTICLE_WALL_LOSS;}
+		
+		if (this.pos_y >= CONST.MAP_HEIGHT) {this.pos_y = CONST.MAP_HEIGHT - 1; this.v_y = -this.v_y*CONST.PARTICLE_WALL_LOSS;}
+		else if (this.pos_y <= 0) {this.pos_y = 1; this.v_y = -this.v_y*CONST.PARTICLE_WALL_LOSS;}
+		
+	}
+	return this;
+}
+
+function Game()
+{
+	var self = this;
+	var request_id;
+	
+	var main_canvas = $("<canvas id='main_canvas' width='" + CONST.CANVAS_WIDTH + "' height='" + CONST.CANVAS_HEIGHT + "'>Update your browser :P</canvas>");
+	var main_context = main_canvas.get(0).getContext('2d');
+	
+	var map_pos_x = 0, map_pos_y = 0;
+
+	var background = new Background();
+	var player_arr = [];
+	
+	var draw_timer = new Timer();
+	var update_timer = new Timer();
+	var interval_id;
+	var debug = true;
+	var quit = false;
+
+	this.initialize = function () {
+
+		player_arr[0] = new Player();
+
+		background.initialize();
+
+		main_canvas.appendTo("body");
+		self.update();
+		interval_id = setInterval(self.update, 1000/CONST.UPS);
+		self.draw();
+	};
+
+	this.update = function () {
+		if(key_down[37]) player_arr[0].move_command_state += CONST.COMMAND_ROTATE_CC;
+		if(key_down[38]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_FORWARD;
+		if(key_down[39]) player_arr[0].move_command_state += CONST.COMMAND_ROTATE_CW;
+		if(key_down[40]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_BACKWARD;
+		if(key_down[69]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_LEFT;
+		if(key_down[82]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
+		//console.log(player_arr[0].move_command_state);
+		
+		var interval = update_timer.interval;
+		player_arr[0].update(interval);
+		console.log("update interval: " + interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
+		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
+	};
+
+	this.draw = function () {
+		if (!quit) request_id = window.requestAnimFrame(self.draw);
+
+		background.draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);		
+		player_arr[0].draw(main_context);
+
+		console.log("draw interval: " + draw_timer.interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
+	};
+
+	return this;
 }
 
 var main_game = new Game();
