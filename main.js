@@ -21,8 +21,11 @@ BACKGROUND_PLANETS0: 10,
 BACKGROUND_PLANET_SIZE_MIN: 30,
 BACKGROUND_PLANET_SIZE_RANGE: 20,
 
-PARTICLE_SIZE: 2,
-PARTICLE_WALL_LOSS: 1,
+PARTICLE_SIZE: 4,
+PARTICLE_WALL_LOSS: 0.5,
+PARTICLE_MASS: 100,
+PARTICLE_CHARGE: 100,
+PARTICLE_INITIAL_VELOCITY: .7, // pixels per millisecond
 
 PLAYER_RADIUS: 20,
 PLAYER_SHIELD_RADIUS: 26,
@@ -34,6 +37,8 @@ PLAYER_ACCELERATION: 0.0007,
 PLAYER_ROTATE_SPEED: 1/360,
 PLAYER_FRICTION: 0.001,
 PLAYER_WALL_LOSS: 0.5,
+PLAYER_FIRE_BATTERY: 120,
+PLAYER_MASS: 2000,
 
 COMMAND_ROTATE_CC: 1,
 COMMAND_MOVE_FORWARD: 2,
@@ -41,7 +46,8 @@ COMMAND_ROTATE_CW: 4,
 COMMAND_MOVE_BACKWARD: 8,
 COMMAND_STRAFE_RIGHT: 16,
 COMMAND_STRAFE_LEFT: 32,
-COMMAND_P_FIRE: 64
+
+COMMAND_FIRE: 1,
 };
 
 window.requestAnimFrame = (function () {
@@ -128,9 +134,8 @@ function Background ()
 		}
 		
 		console.log("Loading background to memory...");
-		background_img.src = background_canvas.get(0).toDataURL();
-
 		background_img.onload = function() {self.ready();};
+		background_img.src = background_canvas.get(0).toDataURL();
 	}
 
 	this.ready = function () {console.log("Background loaded."); this.background_ready = true;}
@@ -148,28 +153,37 @@ function Background ()
 	return this;
 }
 
-function Player()
-{
+function Player(){
 	this.pos_x = 500;
 	this.pos_y = 500;
+	this.angle = 0;
+	this.v_x = 0;
+	this.v_y = 0;
+	this.radius = CONST.PLAYER_RADIUS;
+	this.wing_angle = CONST.PLAYER_WING_ANGLE;
+	this.team_color = 'red';
+	
 	this.map_pos_x = this.pos_x - CONST.CANVAS_WIDTH/2;
 	this.map_pos_y = this.pos_y - CONST.CANVAS_HEIGHT/2;
 	this.canvas_pos_x = CONST.CANVAS_WIDTH/2;
 	this.canvas_pos_y = CONST.CANVAS_HEIGHT/2;
-	this.v_x = 0;
-	this.v_y = 0;
-	this.angle = 0;
-	this.wing_angle = CONST.PLAYER_WING_ANGLE;
+	
+	this.mass = CONST.PLAYER_MASS;
+	
 	this.shield_fade = 0;
-	this.radius = CONST.PLAYER_RADIUS;
-	this.team_color = 'red';
+	this.fire_battery = 0;
+	
 	this.move_command_state = 0;
+	this.command_state = 0;
+	
+	this.request_state = 0;
 	
 	this.update = function (interval) {
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
 		this.v_y -= CONST.PLAYER_FRICTION*this.v_y*interval;
 
 		if (this.shield_fade > 0) this.shield_fade -= interval;
+		if (this.fire_battery > 0) this.fire_battery -= interval;
 
 		if (this.move_command_state & CONST.COMMAND_ROTATE_CC) this.angle -= CONST.PLAYER_ROTATE_SPEED*interval;
 		if (this.move_command_state & CONST.COMMAND_MOVE_FORWARD)
@@ -192,6 +206,14 @@ function Player()
 		{
 			this.v_x -= CONST.PLAYER_ACCELERATION*interval*Math.sin(this.angle);
 			this.v_y += CONST.PLAYER_ACCELERATION*interval*Math.cos(this.angle);
+		}
+		
+		if (this.fire_battery <= 0 && this.command_state & CONST.COMMAND_FIRE)
+		{
+			this.request_state += CONST.COMMAND_FIRE;
+			this.fire_battery = CONST.PLAYER_FIRE_BATTERY;
+			this.v_x -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
+			this.v_y -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
 		}
 
 		this.pos_x += this.v_x*interval;
@@ -219,6 +241,7 @@ function Player()
 			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
 
 		this.move_command_state = 0;
+		this.command_state = 0;
 	};
 	this.draw = function (context) {
 		context.save();
@@ -262,28 +285,34 @@ function Player()
 	return this;
 }
 
-function Particle(x,y,v_x,v_y,mass,charge,p_color)
-{
+function Particle(x,y,v_x,v_y,color){
 	this.pos_x = x;
 	this.pos_y = y;
 	this.v_x = v_x;
 	this.v_y = v_y;
-	this.mass = mass;
-	this.charge = charge;
+	this.mass = CONST.PARTICLE_MASS;
+	this.charge = CONST.PARTICLE_CHARGE;
 	this.color = color;
 	this.size = CONST.PARTICLE_SIZE;
-	this.half_size = size/2;
+	this.half_size = this.size/2;
 	
 	this.update = function(interval) {
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
 		
 		if (this.pos_x >= CONST.MAP_WIDTH) {this.pos_x = CONST.MAP_WIDTH - 1; this.v_x = -this.v_x*CONST.PARTICLE_WALL_LOSS;}
-		else if (this.pos_x <= 0) {this.pos_x = 1; this.v_x = -this.vX*CONST.PARTICLE_WALL_LOSS;}
+		else if (this.pos_x <= 0) {this.pos_x = 1; this.v_x = -this.v_x*CONST.PARTICLE_WALL_LOSS;}
 		
 		if (this.pos_y >= CONST.MAP_HEIGHT) {this.pos_y = CONST.MAP_HEIGHT - 1; this.v_y = -this.v_y*CONST.PARTICLE_WALL_LOSS;}
 		else if (this.pos_y <= 0) {this.pos_y = 1; this.v_y = -this.v_y*CONST.PARTICLE_WALL_LOSS;}
-		
+	}
+
+	this.draw = function(context, pos_x, pos_y) {
+		context.fillStyle = this.color;
+		var x = this.pos_x - pos_x;
+		var y = this.pos_y - pos_y;
+		if (x >= 0 && x <= CONST.CANVAS_WIDTH && y >= 0 && y <= CONST.CANVAS_HEIGHT)
+			context.fillRect(x - this.half_size, y - this.half_size, this.size, this.size);
 	}
 	return this;
 }
@@ -306,6 +335,11 @@ function Game()
 	var interval_id;
 	var debug = true;
 	var quit = false;
+	
+	var par_arr = [];
+	var par_arr_index = 0;
+	var par_arr_size = 1000;
+	for (var i = 0; i < par_arr_size; i++) par_arr[i] = new Particle(700,500, 0.01*(Math.random()-0.5), 0.01*(Math.random()-0.5), "lime");
 
 	this.initialize = function () {
 
@@ -313,23 +347,51 @@ function Game()
 
 		background.initialize();
 
+		var bg_wait = function(){
+			if (background.background_ready){
+				main_canvas.appendTo("body");
+				self.update();
+				interval_id = setInterval(self.update, 1000/CONST.UPS);//*/
+				self.draw();
+			} else setTimeout(bg_wait, 500);
+		};
+		bg_wait();
+		/*
 		main_canvas.appendTo("body");
 		self.update();
 		interval_id = setInterval(self.update, 1000/CONST.UPS);
 		self.draw();
+		*/
 	};
 
 	this.update = function () {
-		if(key_down[37]) player_arr[0].move_command_state += CONST.COMMAND_ROTATE_CC;
-		if(key_down[38]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_FORWARD;
-		if(key_down[39]) player_arr[0].move_command_state += CONST.COMMAND_ROTATE_CW;
-		if(key_down[40]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_BACKWARD;
-		if(key_down[69]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_LEFT;
-		if(key_down[82]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
-		//console.log(player_arr[0].move_command_state);
+		if (key_down[37]) player_arr[0].move_command_state += CONST.COMMAND_ROTATE_CC;
+		if (key_down[38]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_FORWARD;
+		if (key_down[39]) player_arr[0].move_command_state += CONST.COMMAND_ROTATE_CW;
+		if (key_down[40]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_BACKWARD;
+		if (key_down[69]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_LEFT;
+		if (key_down[82]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
+		if (key_down[83]) player_arr[0].command_state += CONST.COMMAND_FIRE;
 		
 		var interval = update_timer.interval;
+		
 		player_arr[0].update(interval);
+		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(interval);
+		
+		if (player_arr[0].request_state & CONST.COMMAND_FIRE)
+		{
+			if (par_arr_index >= par_arr_size) par_arr_index = 0;
+			delete par_arr[par_arr_index];
+			par_arr[par_arr_index] = new Particle(
+			 player_arr[0].pos_x + CONST.PLAYER_RADIUS*Math.cos(player_arr[0].angle), 
+			 player_arr[0].pos_y + CONST.PLAYER_RADIUS*Math.sin(player_arr[0].angle),
+			 player_arr[0].v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(player_arr[0].angle),
+			 player_arr[0].v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(player_arr[0].angle),'lime');
+			par_arr_index++;
+			player_arr[0].request_state -= CONST.COMMAND_FIRE;
+		}
+		
+		
 		console.log("update interval: " + interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
 		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
 	};
@@ -337,7 +399,10 @@ function Game()
 	this.draw = function () {
 		if (!quit) request_id = window.requestAnimFrame(self.draw);
 
-		background.draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);		
+		background.draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
+		
+		for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
+		
 		player_arr[0].draw(main_context);
 
 		console.log("draw interval: " + draw_timer.interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
