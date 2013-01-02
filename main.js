@@ -5,7 +5,7 @@
 var CONST =
 {
 FPS: 60,
-UPS: 33,
+UPS: 60,
 TIME_INTERVAL: 1000,
 FRAME_MAX: 30,
 
@@ -111,7 +111,7 @@ function Background ()
 
 	this.initialize = function () {
 		console.log("Generating background...");
-		var gradient = background_context.createLinearGradient(0,0,0,CONST.MAP_HEIGHT);
+		var gradient = background_context.createLinearGradient(0,0,CONST.MAP_WIDTH,CONST.MAP_HEIGHT);
 		gradient.addColorStop(0.0,"black");
 		gradient.addColorStop(0.3,"black");
 		gradient.addColorStop(0.5,"purple");
@@ -338,7 +338,7 @@ function Game()
 	
 	var par_arr = [];
 	var par_arr_index = 0;
-	var par_arr_size = 1000;
+	var par_arr_size = 100;
 	for (var i = 0; i < par_arr_size; i++) par_arr[i] = new Particle(700,500, 0.01*(Math.random()-0.5), 0.01*(Math.random()-0.5), "lime");
 
 	this.initialize = function () {
@@ -404,7 +404,7 @@ function Game()
 		for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
 		
 		player_arr[0].draw(main_context);
-
+		
 		console.log("draw interval: " + draw_timer.interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
 	};
 
