@@ -376,6 +376,7 @@ function Game()
 		console.log("Attempting to connect to " + server_url);
 		socket = io.connect(server_url);
 		if (!socket) console.log("Server is down");
+		socket.on("constant_field", function(data){console.log(data); CONST=data;});
 	};
 
 	this.update = function () {
