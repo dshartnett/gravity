@@ -12,10 +12,10 @@ FRAME_MAX: 30,
 CANVAS_WIDTH: 1280,
 CANVAS_HEIGHT: 640,
 
-MAP_WIDTH: 6000,
-MAP_HEIGHT: 3000,
+MAP_WIDTH: 2560,
+MAP_HEIGHT: 1280,
 
-BACKGROUND_STARS0: 10000,
+BACKGROUND_STARS0: 1000,
 BACKGROUND_STARS1: 1000,
 BACKGROUND_PLANETS0: 10,
 BACKGROUND_PLANET_SIZE_MIN: 30,
@@ -26,7 +26,10 @@ PARTICLE_WALL_LOSS: 0.5,
 PARTICLE_MASS: 100,
 PARTICLE_CHARGE: 100,
 PARTICLE_INITIAL_VELOCITY: .7, // pixels per millisecond
+PARTICLE_ARRAY_MAX_SIZE: 100,
 
+PLAYER_MAX_HEALTH: 1000,
+PLAYER_MAX_ENERGY: 1000,
 PLAYER_RADIUS: 20,
 PLAYER_SHIELD_RADIUS: 26,
 PLAYER_SHIELD_FADE_MAX: 700,
@@ -59,10 +62,6 @@ window.requestAnimFrame = (function () {
  					|| function(callback){window.setTimeout(callback, 1000 / CONST.FPS);};
 }
 )();
-
-var key_down = {};
-$(window).keydown(function (key_code) {console.log("Key down: " + key_code.keyCode);/**/ key_down[key_code.keyCode]=true;});
-$(window).keyup(function (key_code) {/*console.log("Key up: " + key_code.keyCode);/**/ key_down[key_code.keyCode]=false;});
 
 function Timer()
 {
@@ -324,27 +323,30 @@ function Game()
 	
 	var main_canvas = $("<canvas id='main_canvas' width='" + CONST.CANVAS_WIDTH + "' height='" + CONST.CANVAS_HEIGHT + "'>Update your browser :P</canvas>");
 	var main_context = main_canvas.get(0).getContext('2d');
-	
-	var map_pos_x = 0, map_pos_y = 0;
+
+	var server_url = 'http://' + (window.location.hostname || "localhost") + ':8080';
+	var socket;
+
+	var key_down = {};
 
 	var background = new Background();
-	var player_arr = [];
 	
 	var draw_timer = new Timer();
 	var update_timer = new Timer();
 	var interval_id;
 	var debug = true;
+	var frame_rates = false;
 	var quit = false;
+	
+	var player_arr = [];
+	var player_arr_size = 0;
 	
 	var par_arr = [];
 	var par_arr_index = 0;
-	var par_arr_size = 100;
-	for (var i = 0; i < par_arr_size; i++) par_arr[i] = new Particle(700,500, 0.01*(Math.random()-0.5), 0.01*(Math.random()-0.5), "lime");
+	var par_arr_size = 0;
 
 	this.initialize = function () {
-
-		player_arr[0] = new Player();
-
+	
 		background.initialize();
 
 		var bg_wait = function(){
@@ -356,12 +358,23 @@ function Game()
 			} else setTimeout(bg_wait, 500);
 		};
 		bg_wait();
-		/*
-		main_canvas.appendTo("body");
-		self.update();
-		interval_id = setInterval(self.update, 1000/CONST.UPS);
-		self.draw();
-		*/
+		
+		player_arr[0] = new Player();
+		player_arr_size = 1;
+		
+		$(window).keydown(function (key_code) {
+			if (debug) console.log("Key down: " + key_code.keyCode);
+			key_down[key_code.keyCode]=true;
+			});
+		$(window).keyup(function (key_code) {
+			if (key_code.keyCode==68) { debug = !debug; console.log("Debug " + (debug?"on.":"off.")); }
+			if (key_code.keyCode==70) frame_rates = !frame_rates;
+			if (debug) console.log("Key up: " + key_code.keyCode);
+			key_down[key_code.keyCode]=false;
+			});
+		
+		console.log("Attempting to connect to " + server_url);
+		socket  = io.connect(server_url);
 	};
 
 	this.update = function () {
@@ -380,19 +393,19 @@ function Game()
 		
 		if (player_arr[0].request_state & CONST.COMMAND_FIRE)
 		{
-			if (par_arr_index >= par_arr_size) par_arr_index = 0;
-			delete par_arr[par_arr_index];
+			if (par_arr_index >= CONST.PARTICLE_ARRAY_MAX_SIZE) par_arr_index = 0;
 			par_arr[par_arr_index] = new Particle(
 			 player_arr[0].pos_x + CONST.PLAYER_RADIUS*Math.cos(player_arr[0].angle), 
 			 player_arr[0].pos_y + CONST.PLAYER_RADIUS*Math.sin(player_arr[0].angle),
 			 player_arr[0].v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(player_arr[0].angle),
 			 player_arr[0].v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(player_arr[0].angle),'lime');
 			par_arr_index++;
+			if (par_arr_size < CONST.PARTICLE_ARRAY_MAX_SIZE) par_arr_size++;
 			player_arr[0].request_state -= CONST.COMMAND_FIRE;
 		}
 		
 		
-		console.log("update interval: " + interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
+		if (frame_rates) console.log("update interval: " + interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
 		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
 	};
 
@@ -405,7 +418,7 @@ function Game()
 		
 		player_arr[0].draw(main_context);
 		
-		console.log("draw interval: " + draw_timer.interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
+		if (frame_rates) console.log("draw interval: " + draw_timer.interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
 	};
 
 	return this;
