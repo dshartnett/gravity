@@ -9,8 +9,8 @@ UPS: 60,
 TIME_INTERVAL: 1000,
 FRAME_MAX: 30,
 
-CANVAS_WIDTH: 1280,
-CANVAS_HEIGHT: 640,
+CANVAS_WIDTH: 840,
+CANVAS_HEIGHT: 420,
 
 MAP_WIDTH: 2560,
 MAP_HEIGHT: 1280,
@@ -374,7 +374,8 @@ function Game()
 			});
 		
 		console.log("Attempting to connect to " + server_url);
-		socket  = io.connect(server_url);
+		socket = io.connect(server_url);
+		if (!socket) console.log("Server is down");
 	};
 
 	this.update = function () {
@@ -404,7 +405,7 @@ function Game()
 			player_arr[0].request_state -= CONST.COMMAND_FIRE;
 		}
 		
-		
+		socket.emit('ping', interval);
 		if (frame_rates) console.log("update interval: " + interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
 		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
 	};
