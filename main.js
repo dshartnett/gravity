@@ -5,7 +5,7 @@
 var CONST =
 {
 FPS: 60,
-UPS: 60,
+UPS: 33,
 TIME_INTERVAL: 1000,
 FRAME_MAX: 30,
 
@@ -15,7 +15,7 @@ CANVAS_HEIGHT: 420,
 MAP_WIDTH: 2560,
 MAP_HEIGHT: 1280,
 
-BACKGROUND_STARS0: 1000,
+BACKGROUND_STARS0: 10000,
 BACKGROUND_STARS1: 1000,
 BACKGROUND_PLANETS0: 10,
 BACKGROUND_PLANET_SIZE_MIN: 30,
@@ -79,6 +79,13 @@ Timer.prototype = {
 		var i = Date.now() - this.then;
 		this.then = Date.now();
 
+// alternate method is a bit more elegant but slower... array shifting is bad
+/*		this.time_array.push(i);
+		if (this.frame_count == CONST.FRAME_MAX)
+			this.time_count -= this.time_array.shift();
+		else
+			this.frame_count++;
+*/
 		this.time_array_index++;
 		if (this.time_array_index >= CONST.FRAME_MAX) this.time_array_index = 0;
 
@@ -86,9 +93,9 @@ Timer.prototype = {
 		else this.frame_count++;
 
 		this.time_array[this.time_array_index] = i;
+//*/
 
 		this.time_count += i;
-
 		this.int_count++;
 		return i;
 	},
@@ -326,6 +333,7 @@ function Game()
 
 	var server_url = 'http://' + (window.location.hostname || "localhost") + ':8080';
 	var socket;
+	var socket_worker;
 
 	var key_down = {};
 
@@ -374,9 +382,13 @@ function Game()
 			});
 		
 		console.log("Attempting to connect to " + server_url);
-		socket = io.connect(server_url);
+		/*socket = io.connect(server_url);
 		if (!socket) console.log("Server is down");
-		socket.on("constant_field", function(data){console.log(data); CONST=data;});
+		socket.on("constant_field", function(data){console.log(data); CONST=data;});*/
+
+		socket_worker = new Worker("socket_worker.js");
+		socket_worker.onmessage = function(e){console.log(e.data);};
+		socket_worker.postMessage("do something");
 	};
 
 	this.update = function () {
@@ -406,7 +418,8 @@ function Game()
 			player_arr[0].request_state -= CONST.COMMAND_FIRE;
 		}
 		
-		socket.emit('ping', interval);
+		//socket.emit('ping', interval);
+		socket_worker.postMessage("ping");
 		if (frame_rates) console.log("update interval: " + interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
 		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
 	};

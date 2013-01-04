@@ -54,7 +54,7 @@ COMMAND_FIRE: 1,
 };
 
 setInterval(function () {
-	console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
+	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
 },1000/CONST.UPS);
 
 var app = require('http').createServer(handler)
@@ -82,7 +82,8 @@ io.sockets.on('connection', function (socket) {
 	PLAYER_ID++;
 	player_list[socket.id] = {"player_id":PLAYER_ID,x:0,y:0,angle:0};
 
-	socket.emit("constant_field",CONST);
+	console.log(PLAYER_ID + " connected on socket " + socket.id);
+//	socket.emit("constant_field",CONST);
 
 	// Start listening for mouse move events
 	/*
@@ -94,7 +95,7 @@ io.sockets.on('connection', function (socket) {
 	});*/
 	
 	socket.on('ping', function(data) {
-		console.log("pinged; interval:" + data + " player id: " + player_list[socket.id].player_id);
+		console.log("pinged; interval:" + data + " player id: " + player_list[socket.id].player_id + "  socket id: " + socket.id);
 		socket.emit("pong",PLAYER_ID);
 	});
 
