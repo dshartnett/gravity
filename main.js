@@ -49,8 +49,9 @@ COMMAND_ROTATE_CW: 4,
 COMMAND_MOVE_BACKWARD: 8,
 COMMAND_STRAFE_RIGHT: 16,
 COMMAND_STRAFE_LEFT: 32,
+PLAYER_MOVING: 63,
 
-COMMAND_FIRE: 1,
+COMMAND_FIRE: 1024,
 };
 
 window.requestAnimFrame = (function () {
@@ -85,7 +86,7 @@ Timer.prototype = {
 			this.time_count -= this.time_array.shift();
 		else
 			this.frame_count++;
-*/
+//*/
 		this.time_array_index++;
 		if (this.time_array_index >= CONST.FRAME_MAX) this.time_array_index = 0;
 
@@ -214,7 +215,7 @@ function Player(){
 			this.v_y += CONST.PLAYER_ACCELERATION*interval*Math.cos(this.angle);
 		}
 		
-		if (this.fire_battery <= 0 && this.command_state & CONST.COMMAND_FIRE)
+		if (this.fire_battery <= 0 && this.move_command_state & CONST.COMMAND_FIRE)
 		{
 			this.request_state += CONST.COMMAND_FIRE;
 			this.fire_battery = CONST.PLAYER_FIRE_BATTERY;
@@ -247,7 +248,7 @@ function Player(){
 			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
 
 		this.move_command_state = 0;
-		this.command_state = 0;
+		//this.command_state = 0;
 	};
 	this.draw = function (context) {
 		context.save();
@@ -384,11 +385,13 @@ function Game()
 		console.log("Attempting to connect to " + server_url);
 		/*socket = io.connect(server_url);
 		if (!socket) console.log("Server is down");
-		socket.on("constant_field", function(data){console.log(data); CONST=data;});*/
+		socket.on("pong", function(data){console.log(data);});
+		//socket.on("constant_field", function(data){console.log(data); CONST=data;});
+		*/
 
 		socket_worker = new Worker("socket_worker.js");
 		socket_worker.onmessage = function(e){ if (debug) console.log(e.data); };
-		socket_worker.postMessage("do something");
+		socket_worker.postMessage("do something");//*/
 	};
 
 	this.update = function () {
@@ -398,11 +401,12 @@ function Game()
 		if (key_down[40]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_BACKWARD;
 		if (key_down[69]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_LEFT;
 		if (key_down[82]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
-		if (key_down[83]) player_arr[0].command_state += CONST.COMMAND_FIRE;
+		if (key_down[83]) player_arr[0].move_command_state += CONST.COMMAND_FIRE;
 		
 		var update_interval = update_timer.interval;
 
 		if (player_arr[0].move_command_state > 0) socket_worker.postMessage(player_arr[0].move_command_state);
+		//if (player_arr[0].move_command_state > 0) socket.emit("ping", player_arr[0].move_command_state);
 		
 		player_arr[0].update(update_interval);
 		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(update_interval);
