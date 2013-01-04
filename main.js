@@ -5,7 +5,7 @@
 var CONST =
 {
 FPS: 60,
-UPS: 33,
+UPS: 35,
 TIME_INTERVAL: 1000,
 FRAME_MAX: 30,
 
@@ -387,7 +387,7 @@ function Game()
 		socket.on("constant_field", function(data){console.log(data); CONST=data;});*/
 
 		socket_worker = new Worker("socket_worker.js");
-		socket_worker.onmessage = function(e){console.log(e.data);};
+		socket_worker.onmessage = function(e){ if (debug) console.log(e.data); };
 		socket_worker.postMessage("do something");
 	};
 
@@ -400,10 +400,12 @@ function Game()
 		if (key_down[82]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
 		if (key_down[83]) player_arr[0].command_state += CONST.COMMAND_FIRE;
 		
-		var interval = update_timer.interval;
+		var update_interval = update_timer.interval;
+
+		if (player_arr[0].move_command_state > 0) socket_worker.postMessage(player_arr[0].move_command_state);
 		
-		player_arr[0].update(interval);
-		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(interval);
+		player_arr[0].update(update_interval);
+		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(update_interval);
 		
 		if (player_arr[0].request_state & CONST.COMMAND_FIRE)
 		{
@@ -419,21 +421,21 @@ function Game()
 		}
 		
 		//socket.emit('ping', interval);
-		socket_worker.postMessage("ping");
-		if (frame_rates) console.log("update interval: " + interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
+
+		if (frame_rates) console.log("update interval: " + update_interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
 		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
 	};
 
 	this.draw = function () {
 		if (!quit) request_id = window.requestAnimFrame(self.draw);
 
-		background.draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
-		
-		for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
-		
+		var draw_interval = draw_timer.interval;
+
+		background.draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);		
+		for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);		
 		player_arr[0].draw(main_context);
 		
-		if (frame_rates) console.log("draw interval: " + draw_timer.interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
+		if (frame_rates) console.log("draw interval: " + draw_interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
 	};
 
 	return this;
