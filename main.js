@@ -391,7 +391,7 @@ function Game()
 
 		socket_worker = new Worker("socket_worker.js");
 		socket_worker.onmessage = function(e){ if (debug) console.log(e.data); };
-		socket_worker.postMessage("do something");//*/
+		socket_worker.postMessage({command:"connect",server:server_url});//*/
 	};
 
 	this.update = function () {
@@ -405,6 +405,7 @@ function Game()
 		
 		var update_interval = update_timer.interval;
 
+		
 		if (player_arr[0].move_command_state > 0) socket_worker.postMessage(player_arr[0].move_command_state);
 		//if (player_arr[0].move_command_state > 0) socket.emit("ping", player_arr[0].move_command_state);
 		
