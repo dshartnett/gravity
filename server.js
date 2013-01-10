@@ -5,7 +5,7 @@
 var CONST =
 {
 FPS: 60,
-UPS: 60,
+UPS: 35,
 TIME_INTERVAL: 1000,
 FRAME_MAX: 30,
 
@@ -15,7 +15,7 @@ CANVAS_HEIGHT: 420,
 MAP_WIDTH: 2560,
 MAP_HEIGHT: 1280,
 
-BACKGROUND_STARS0: 1000,
+BACKGROUND_STARS0: 10000,
 BACKGROUND_STARS1: 1000,
 BACKGROUND_PLANETS0: 10,
 BACKGROUND_PLANET_SIZE_MIN: 30,
@@ -49,8 +49,9 @@ COMMAND_ROTATE_CW: 4,
 COMMAND_MOVE_BACKWARD: 8,
 COMMAND_STRAFE_RIGHT: 16,
 COMMAND_STRAFE_LEFT: 32,
+PLAYER_MOVING: 63,
 
-COMMAND_FIRE: 1,
+COMMAND_FIRE: 1024,
 };
 
 setInterval(function () {
@@ -75,39 +76,113 @@ function handler(request, response) {request.addListener('end', function () {fil
 io.set('log level', 1);
 
 var PLAYER_ID = 0;
-
 var player_list = {};
+
 // Listen for incoming connections from clients
 io.sockets.on('connection', function (socket) {
 	PLAYER_ID++;
-	player_list[socket.id] = {"player_id":PLAYER_ID,x:0,y:0,angle:0};
+	player_list[socket.id] = {player_id:PLAYER_ID, start_interval: Date.now(), end_interval: null, data:{x:CONST.MAP_WIDTH/2, y:CONST.MAP_HEIGHT/2, angle:0}, player:new Player()};
+	
+	player_list[socket.id].player.pos_x = player_list[socket.id].data.x;
+	player_list[socket.id].player.pos_y = player_list[socket.id].data.y;
+	player_list[socket.id].player.angle = player_list[socket.id].data.angle;
 
-	console.log(PLAYER_ID + " connected on socket " + socket.id);
-//	socket.emit("constant_field",CONST);
-
-	// Start listening for mouse move events
-	/*
-	socket.on('mousemove', function (data) {
-		
-		// This line sends the event (broadcasts it)
-		// to everyone except the originating client.
-		socket.broadcast.emit('moving', data);
-	});*/
+	console.log("player " + PLAYER_ID + " connected on socket " + socket.id + ". ponging now...");
+	socket.emit("pong",player_list[socket.id].data);
 	
 	socket.on('ping', function(data) {
-		console.log("pinged; interval:" + data + " player id: " + player_list[socket.id].player_id + "  socket id: " + socket.id);
-		socket.emit("pong",PLAYER_ID);
+		player_list[socket.id].end_interval = Date.now();
+		var interval = player_list[socket.id].end_interval - player_list[socket.id].start_interval;
+		console.log("pinged with: " + data + " player id: " + player_list[socket.id].player_id + "  socket id: " + socket.id + " interval: " + interval);
+		
+		player_list[socket.id].player.move_command_state = data;
+		player_list[socket.id].player.update(interval);
+		player_list[socket.id].data.x = player_list[socket.id].player.pos_x;
+		player_list[socket.id].data.y = player_list[socket.id].player.pos_y;
+		player_list[socket.id].data.angle = player_list[socket.id].player.angle;
+		
+		player_list[socket.id].start_interval = Date.now();
+		socket.emit("pong",player_list[socket.id].data);
 	});
 
-	socket.on('player_position', function(data) {
-		player_list[socket.id].x = data.x;
-		player_list[socket.id].y = data.y;
-		socket.broadcast.emit('player_position',data);
-	});
 	socket.on('disconnect', function(){
 		console.log("player " + player_list[socket.id].player_id + " disconnected");
 		socket.broadcast.emit('player_removed', PLAYER_ID);
 		delete player_list[socket.id];
 	});
 });
+
+function Player(){
+	this.pos_x = 500;
+	this.pos_y = 500;
+	this.angle = 0;
+	
+	this.v_x = 0;
+	this.v_y = 0;
+	this.radius = CONST.PLAYER_RADIUS;
+	this.wing_angle = CONST.PLAYER_WING_ANGLE;
+	this.team_color = 'red';
+	
+	this.mass = CONST.PLAYER_MASS;
+	
+	this.shield_fade = 0;
+	this.fire_battery = 0;
+	
+	this.move_command_state = 0;
+	
+	this.server_set = false;
+	
+	this.update = function (interval) {
+		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
+		this.v_y -= CONST.PLAYER_FRICTION*this.v_y*interval;
+
+		if (this.shield_fade > 0) this.shield_fade -= interval;
+		if (this.fire_battery > 0) this.fire_battery -= interval;
+
+		if (this.move_command_state & CONST.COMMAND_ROTATE_CC) this.angle -= CONST.PLAYER_ROTATE_SPEED*interval;
+		if (this.move_command_state & CONST.COMMAND_MOVE_FORWARD)
+		{
+			this.v_x += CONST.PLAYER_ACCELERATION*interval*Math.cos(this.angle);
+			this.v_y += CONST.PLAYER_ACCELERATION*interval*Math.sin(this.angle);
+		}
+		if (this.move_command_state & CONST.COMMAND_ROTATE_CW) this.angle += CONST.PLAYER_ROTATE_SPEED*interval;
+		if (this.move_command_state & CONST.COMMAND_MOVE_BACKWARD)
+		{
+			this.v_x -= CONST.PLAYER_ACCELERATION*interval*Math.cos(this.angle);
+			this.v_y -= CONST.PLAYER_ACCELERATION*interval*Math.sin(this.angle);
+		}
+		if (this.move_command_state & CONST.COMMAND_STRAFE_LEFT)
+		{
+			this.v_x += CONST.PLAYER_ACCELERATION*interval*Math.sin(this.angle);
+			this.v_y -= CONST.PLAYER_ACCELERATION*interval*Math.cos(this.angle);
+		}
+		if (this.move_command_state & CONST.COMMAND_STRAFE_RIGHT)
+		{
+			this.v_x -= CONST.PLAYER_ACCELERATION*interval*Math.sin(this.angle);
+			this.v_y += CONST.PLAYER_ACCELERATION*interval*Math.cos(this.angle);
+		}
+		/*
+		if (this.fire_battery <= 0 && this.move_command_state & CONST.COMMAND_FIRE)
+		{
+			this.request_state += CONST.COMMAND_FIRE;
+			this.fire_battery = CONST.PLAYER_FIRE_BATTERY;
+			this.v_x -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
+			this.v_y -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
+		}*/
+
+		this.pos_x += this.v_x*interval;
+		this.pos_y += this.v_y*interval;
+
+		if (this.pos_x - this.radius <= 0)
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH)
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+		if (this.pos_y - this.radius <= 0)
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+	};
+	return this;
+}
+
 })();

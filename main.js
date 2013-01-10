@@ -5,7 +5,7 @@
 var CONST =
 {
 FPS: 60,
-UPS: 35,
+UPS: 60,
 TIME_INTERVAL: 1000,
 FRAME_MAX: 30,
 
@@ -181,9 +181,10 @@ function Player(){
 	this.fire_battery = 0;
 	
 	this.move_command_state = 0;
-	this.command_state = 0;
 	
 	this.request_state = 0;
+	
+	this.server_set = false;
 	
 	this.update = function (interval) {
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
@@ -226,6 +227,17 @@ function Player(){
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
 
+		// Handles wall bounce
+		if (this.pos_x - this.radius <= 0)
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH)
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+		if (this.pos_y - this.radius <= 0)
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+
+		// Handles map location for drawing
 		if (this.pos_x <= CONST.CANVAS_WIDTH/2)
 			{this.map_pos_x = 0; this.canvas_pos_x = this.pos_x;}
 		else if (this.pos_x >= CONST.MAP_WIDTH - CONST.CANVAS_WIDTH/2)
@@ -238,18 +250,27 @@ function Player(){
 			{this.map_pos_y = CONST.MAP_HEIGHT - CONST.CANVAS_HEIGHT; this.canvas_pos_y = CONST.CANVAS_HEIGHT - CONST.MAP_HEIGHT + this.pos_y;}
 		else {this.map_pos_y = this.pos_y - CONST.CANVAS_HEIGHT/2; this.canvas_pos_y = CONST.CANVAS_HEIGHT/2;}
 
-		if (this.pos_x - this.radius <= 0)
-			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
-		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH)
-			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
-		if (this.pos_y - this.radius <= 0)
-			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
-		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
-			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
-
 		this.move_command_state = 0;
-		//this.command_state = 0;
 	};
+	
+	this.net_update = function (interval) {
+	
+		// Handles map location for drawing
+		if (this.pos_x <= CONST.CANVAS_WIDTH/2)
+			{this.map_pos_x = 0; this.canvas_pos_x = this.pos_x;}
+		else if (this.pos_x >= CONST.MAP_WIDTH - CONST.CANVAS_WIDTH/2)
+			{this.map_pos_x = CONST.MAP_WIDTH - CONST.CANVAS_WIDTH; this.canvas_pos_x = CONST.CANVAS_WIDTH - CONST.MAP_WIDTH + this.pos_x;}
+		else {this.map_pos_x = this.pos_x - CONST.CANVAS_WIDTH/2; this.canvas_pos_x = CONST.CANVAS_WIDTH/2;}
+
+		if (this.pos_y <= CONST.CANVAS_HEIGHT/2)
+			{this.map_pos_y = 0; this.canvas_pos_y = this.pos_y;}
+		else if (this.pos_y >= CONST.MAP_HEIGHT - CONST.CANVAS_HEIGHT/2)
+			{this.map_pos_y = CONST.MAP_HEIGHT - CONST.CANVAS_HEIGHT; this.canvas_pos_y = CONST.CANVAS_HEIGHT - CONST.MAP_HEIGHT + this.pos_y;}
+		else {this.map_pos_y = this.pos_y - CONST.CANVAS_HEIGHT/2; this.canvas_pos_y = CONST.CANVAS_HEIGHT/2;}
+		
+		this.move_command_state = 0;
+	};
+	
 	this.draw = function (context) {
 		context.save();
 		context.translate(this.canvas_pos_x, this.canvas_pos_y);
@@ -343,6 +364,7 @@ function Game()
 	var draw_timer = new Timer();
 	var update_timer = new Timer();
 	var interval_id;
+	
 	var debug = true;
 	var frame_rates = false;
 	var quit = false;
@@ -383,13 +405,21 @@ function Game()
 			});
 		
 		console.log("Attempting to connect to " + server_url);
-		/*socket = io.connect(server_url);
+		
+		socket = io.connect(server_url);
 		if (!socket) console.log("Server is down");
-		socket.on("pong", function(data){console.log(data);});
-		//socket.on("constant_field", function(data){console.log(data); CONST=data;});
-		*/
+		socket.on("pong", function(data){
+			console.log(data);
+			player_arr[0].pos_x = data.x;
+			player_arr[0].pos_y = data.y;
+			player_arr[0].angle = data.angle;
+			player_arr[0].server_set = true;
+			//socket.emit("ping", player_arr[0].move_command_state);
+		});
+		//socket.emit("ping", player_arr[0].move_command_state);
+		
 
-		socket_worker = new Worker("socket_worker.js");
+		/*socket_worker = new Worker("socket_worker.js");
 		socket_worker.onmessage = function(e){ if (debug) console.log(e.data); };
 		socket_worker.postMessage({command:"connect",server:server_url});//*/
 	};
@@ -405,25 +435,29 @@ function Game()
 		
 		var update_interval = update_timer.interval;
 
+//		if (player_arr[0].move_command_state > 0) socket_worker.postMessage(player_arr[0].move_command_state);
+		if (player_arr[0].server_set)
+		{
+			socket.emit("ping", player_arr[0].move_command_state);
+			player_arr[0].server_set = false;
+		}
 		
-		if (player_arr[0].move_command_state > 0) socket_worker.postMessage(player_arr[0].move_command_state);
-		//if (player_arr[0].move_command_state > 0) socket.emit("ping", player_arr[0].move_command_state);
+		player_arr[0].net_update(update_interval);
 		
-		player_arr[0].update(update_interval);
-		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(update_interval);
+//		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(update_interval);
 		
-		if (player_arr[0].request_state & CONST.COMMAND_FIRE)
+		/*if (player_arr[0].request_state & CONST.COMMAND_FIRE)
 		{
 			if (par_arr_index >= CONST.PARTICLE_ARRAY_MAX_SIZE) par_arr_index = 0;
 			par_arr[par_arr_index] = new Particle(
-			 player_arr[0].pos_x + CONST.PLAYER_RADIUS*Math.cos(player_arr[0].angle), 
+			 player_arr[0].pos_x + CONST.PLAYER_RADIUS*Math.cos(player_arr[0].angle),
 			 player_arr[0].pos_y + CONST.PLAYER_RADIUS*Math.sin(player_arr[0].angle),
 			 player_arr[0].v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(player_arr[0].angle),
 			 player_arr[0].v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(player_arr[0].angle),'lime');
 			par_arr_index++;
 			if (par_arr_size < CONST.PARTICLE_ARRAY_MAX_SIZE) par_arr_size++;
 			player_arr[0].request_state -= CONST.COMMAND_FIRE;
-		}
+		}*/
 		
 		//socket.emit('ping', interval);
 
@@ -436,8 +470,8 @@ function Game()
 
 		var draw_interval = draw_timer.interval;
 
-		background.draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);		
-		for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);		
+		background.draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
+		//for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);		
 		player_arr[0].draw(main_context);
 		
 		if (frame_rates) console.log("draw interval: " + draw_interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
