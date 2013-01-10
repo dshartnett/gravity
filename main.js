@@ -255,6 +255,9 @@ function Player(){
 	
 	this.net_update = function (interval) {
 	
+	//	this.pos_x += this.v_x*interval;
+	//	this.pos_y += this.v_y*interval;
+
 		// Handles map location for drawing
 		if (this.pos_x <= CONST.CANVAS_WIDTH/2)
 			{this.map_pos_x = 0; this.canvas_pos_x = this.pos_x;}
@@ -412,6 +415,8 @@ function Game()
 			console.log(data);
 			player_arr[0].pos_x = data.x;
 			player_arr[0].pos_y = data.y;
+			player_arr[0].v_x = data.v_x;
+			player_arr[0].v_y = data.v_y;
 			player_arr[0].angle = data.angle;
 			player_arr[0].server_set = true;
 			//socket.emit("ping", player_arr[0].move_command_state);

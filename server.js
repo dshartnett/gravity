@@ -81,7 +81,13 @@ var player_list = {};
 // Listen for incoming connections from clients
 io.sockets.on('connection', function (socket) {
 	PLAYER_ID++;
-	player_list[socket.id] = {player_id:PLAYER_ID, start_interval: Date.now(), end_interval: null, data:{x:CONST.MAP_WIDTH/2, y:CONST.MAP_HEIGHT/2, angle:0}, player:new Player()};
+	player_list[socket.id] = {
+		player_id:PLAYER_ID, 
+		start_interval: Date.now(),
+		end_interval: null,
+		data:{x:CONST.MAP_WIDTH/2, y:CONST.MAP_HEIGHT/2, v_x:0, v_y:0, angle:0},
+		player:new Player()
+	};
 	
 	player_list[socket.id].player.pos_x = player_list[socket.id].data.x;
 	player_list[socket.id].player.pos_y = player_list[socket.id].data.y;
@@ -89,16 +95,18 @@ io.sockets.on('connection', function (socket) {
 
 	console.log("player " + PLAYER_ID + " connected on socket " + socket.id + ". ponging now...");
 	socket.emit("pong",player_list[socket.id].data);
-	
+
 	socket.on('ping', function(data) {
 		player_list[socket.id].end_interval = Date.now();
 		var interval = player_list[socket.id].end_interval - player_list[socket.id].start_interval;
 		console.log("pinged with: " + data + " player id: " + player_list[socket.id].player_id + "  socket id: " + socket.id + " interval: " + interval);
-		
+
 		player_list[socket.id].player.move_command_state = data;
 		player_list[socket.id].player.update(interval);
 		player_list[socket.id].data.x = player_list[socket.id].player.pos_x;
 		player_list[socket.id].data.y = player_list[socket.id].player.pos_y;
+		player_list[socket.id].data.v_x = player_list[socket.id].player.v_x;
+		player_list[socket.id].data.v_y = player_list[socket.id].player.v_y;
 		player_list[socket.id].data.angle = player_list[socket.id].player.angle;
 		
 		player_list[socket.id].start_interval = Date.now();
