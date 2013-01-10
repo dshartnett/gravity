@@ -25,7 +25,7 @@ PARTICLE_SIZE: 4,
 PARTICLE_WALL_LOSS: 0.5,
 PARTICLE_MASS: 100,
 PARTICLE_CHARGE: 100,
-PARTICLE_INITIAL_VELOCITY: .7, // pixels per millisecond
+PARTICLE_INITIAL_VELOCITY: 0.7, // pixels per millisecond
 PARTICLE_ARRAY_MAX_SIZE: 100,
 
 PLAYER_MAX_HEALTH: 1000,
@@ -168,7 +168,7 @@ function Player(){
 	this.v_y = 0;
 	this.radius = CONST.PLAYER_RADIUS;
 	this.wing_angle = CONST.PLAYER_WING_ANGLE;
-	this.team_color = 'red';
+	this.team_color = 'lime';
 	
 	this.map_pos_x = this.pos_x - CONST.CANVAS_WIDTH/2;
 	this.map_pos_y = this.pos_y - CONST.CANVAS_HEIGHT/2;
