@@ -412,12 +412,22 @@ function Game()
 		socket = io.connect(server_url);
 		if (!socket) console.log("Server is down");
 		socket.on("pong", function(data){
-			console.log(data);
-			player_arr[0].pos_x = data.x;
-			player_arr[0].pos_y = data.y;
+			if (debug) console.log(data);
+			var diff_x = data.x - player_arr[0].pos_x;
+			var diff_y = data.y - player_arr[0].pos_y;
+			var diff_a = data.angle - player_arr[0].angle;
+			
+			if (Math.abs(diff_x) > 40)
+				player_arr[0].pos_x = data.x;
+			else player_arr[0].pos_x += diff_x*0.1;
+			if (Math.abs(diff_y) > 40)
+				player_arr[0].pos_y = data.y;
+			else player_arr[0].pos_y += diff_y*0.1;
+			
+			player_arr[0].angle = data.angle;
+				
 			player_arr[0].v_x = data.v_x;
 			player_arr[0].v_y = data.v_y;
-			player_arr[0].angle = data.angle;
 			player_arr[0].server_set = true;
 			//socket.emit("ping", player_arr[0].move_command_state);
 		});
@@ -447,7 +457,8 @@ function Game()
 			player_arr[0].server_set = false;
 		}
 		
-		player_arr[0].net_update(update_interval);
+		//player_arr[0].net_update(update_interval);
+		player_arr[0].update(update_interval);
 		
 //		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(update_interval);
 		

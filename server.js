@@ -102,8 +102,9 @@ io.sockets.on('connection', function (socket) {
 		player_list[socket.id].player.update(interval);
 		
 		player_list[socket.id].start_interval = Date.now();
-
-		socket.emit("pong", player_list[socket.id].player.data());
+		
+		//socket.emit("pong", player_list[socket.id].player.data());
+		setTimeout(function(){socket.emit("pong", player_list[socket.id].player.data());}, 100);
 	});
 
 	socket.on('disconnect', function(){
