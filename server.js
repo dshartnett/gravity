@@ -54,9 +54,46 @@ PLAYER_MOVING: 63,
 COMMAND_FIRE: 1024,
 };
 
-setInterval(function () {
-	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
-},1000/CONST.UPS);
+function Timer()
+{
+	this.then = Date.now();
+	this.int_count = 0;
+
+	this.time_array = [];
+	this.time_array_index = 0;
+	this.frame_count = 0;
+	this.time_count = 0;
+}
+
+Timer.prototype = {
+	get interval(){
+		var i = Date.now() - this.then;
+		this.then = Date.now();
+
+// alternate method is a bit more elegant but slower... array shifting is bad
+/*		this.time_array.push(i);
+		if (this.frame_count == CONST.FRAME_MAX)
+			this.time_count -= this.time_array.shift();
+		else
+			this.frame_count++;
+//*/
+		this.time_array_index++;
+		if (this.time_array_index >= CONST.FRAME_MAX) this.time_array_index = 0;
+
+		if (this.frame_count >= CONST.FRAME_MAX) this.time_count -= this.time_array[this.time_array_index];
+		else this.frame_count++;
+
+		this.time_array[this.time_array_index] = i;
+//*/
+
+		this.time_count += i;
+		this.int_count++;
+		return i;
+	},
+	get i_count(){return this.int_count;},
+	get frame_rate(){return 1000*this.frame_count/this.time_count;}
+};
+
 
 var app = require('http').createServer(handler)
 	, io = require('socket.io').listen(app)
@@ -80,6 +117,15 @@ var player_list = {};
 var OBJECT_ID = 0;
 var object_list = {};
 
+var main_timer = new Timer();
+
+setInterval(function () {
+	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
+	var server_interval = main_timer.interval;
+	for (var u in player_list) player_list[u].player.update(server_interval);
+	console.log(server_interval);
+},1000/CONST.UPS);
+
 // Listen for incoming connections from clients
 io.sockets.on('connection', function (socket) {
 	PLAYER_ID++;
@@ -99,12 +145,12 @@ io.sockets.on('connection', function (socket) {
 		console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.p_id + "  socket id: " + socket.id + " interval: " + interval);
 
 		player_list[socket.id].player.move_command_state = data;
-		player_list[socket.id].player.update(interval);
+		//player_list[socket.id].player.update(interval);
 		
 		player_list[socket.id].start_interval = Date.now();
 		
-		//socket.emit("pong", player_list[socket.id].player.data());
-		setTimeout(function(){socket.emit("pong", player_list[socket.id].player.data());}, 100);
+		socket.emit("pong", player_list[socket.id].player.data());
+		//setTimeout(function(){socket.emit("pong", player_list[socket.id].player.data());}, 200);
 	});
 
 	socket.on('disconnect', function(){

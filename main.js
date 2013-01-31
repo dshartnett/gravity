@@ -420,11 +420,14 @@ function Game()
 			if (Math.abs(diff_x) > 40)
 				player_arr[0].pos_x = data.x;
 			else player_arr[0].pos_x += diff_x*0.1;
+			
 			if (Math.abs(diff_y) > 40)
 				player_arr[0].pos_y = data.y;
 			else player_arr[0].pos_y += diff_y*0.1;
 			
-			player_arr[0].angle = data.angle;
+			if (Math.abs(diff_a) > Math.PI/6)
+				player_arr[0].angle = data.angle;
+			else player_arr[0].angle += diff_a*0.1;
 				
 			player_arr[0].v_x = data.v_x;
 			player_arr[0].v_y = data.v_y;
