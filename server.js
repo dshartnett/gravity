@@ -149,7 +149,7 @@ io.sockets.on('connection', function (socket) {
 		
 		player_list[socket.id].start_interval = Date.now();
 		
-		socket.emit("pong", player_list[socket.id].player.data());
+		socket.volatile.emit("pong", player_list[socket.id].player.data());
 		//setTimeout(function(){socket.emit("pong", player_list[socket.id].player.data());}, 200);
 	});
 

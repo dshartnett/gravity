@@ -456,7 +456,7 @@ function Game()
 //		if (player_arr[0].move_command_state > 0) socket_worker.postMessage(player_arr[0].move_command_state);
 		if (player_arr[0].server_set)
 		{
-			socket.emit("ping", player_arr[0].move_command_state);
+			socket.volatile.emit("ping", player_arr[0].move_command_state);
 			player_arr[0].server_set = false;
 		}
 		
