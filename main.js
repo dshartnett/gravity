@@ -4,8 +4,8 @@
 
 var CONST =
 {
-FPS: 60,
-UPS: 60,
+FPS: 35,
+UPS: 35,
 TIME_INTERVAL: 1000,
 FRAME_MAX: 30,
 
@@ -321,7 +321,8 @@ function Player(){
 	return this;
 }
 
-function Particle(x,y,v_x,v_y,color){
+function Particle(p_id,x,y,v_x,v_y,color){
+	this.id = p_id;
 	this.pos_x = x;
 	this.pos_y = y;
 	this.v_x = v_x;
@@ -379,7 +380,9 @@ function Game()
 	
 	var player_arr = [];
 	var player_arr_size = 0;
-	
+
+	var par_col = {}; // we'll try an object instead of a strict array
+	par_col[0] = new Particle(0,10,10,100,100,"lime");
 	var par_arr = [];
 	var par_arr_index = 0;
 	var par_arr_size = 0;
@@ -469,6 +472,7 @@ function Game()
 		player_arr[0].update(update_interval);
 		
 //		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(update_interval);
+		for (var i in par_col) par_col[i].update(update_interval);
 		
 		/*if (player_arr[0].request_state & CONST.COMMAND_FIRE)
 		{
@@ -495,7 +499,8 @@ function Game()
 		var draw_interval = draw_timer.interval;
 
 		background.draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
-		//for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);		
+		//for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
+		for (var i in par_col) par_col[i].draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
 		player_arr[0].draw(main_context);
 		
 		if (frame_rates) console.log("draw interval: " + draw_interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
