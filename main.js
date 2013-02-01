@@ -9,6 +9,11 @@ UPS: 60,
 TIME_INTERVAL: 1000,
 FRAME_MAX: 30,
 
+POSITION_CORRECT_X: 40,
+POSITION_CORRECT_Y: 40,
+POSITION_CORRECT_ANGLE: Math.PI/3,
+POSITION_CORRECTION_PERCENT: 0.1,
+
 CANVAS_WIDTH: 840,
 CANVAS_HEIGHT: 420,
 
@@ -417,18 +422,18 @@ function Game()
 			var diff_y = data.y - player_arr[0].pos_y;
 			var diff_a = data.angle - player_arr[0].angle;
 			
-			if (Math.abs(diff_x) > 40)
+			if (Math.abs(diff_x) > CONST.POSITON_CORRECT_X)
 				player_arr[0].pos_x = data.x;
-			else player_arr[0].pos_x += diff_x*0.1;
+			else player_arr[0].pos_x += diff_x*CONST.POSITION_CORRECTION_PERCENT;
 			
-			if (Math.abs(diff_y) > 40)
+			if (Math.abs(diff_y) > CONST.POSITION_CORRECT_Y)
 				player_arr[0].pos_y = data.y;
-			else player_arr[0].pos_y += diff_y*0.1;
+			else player_arr[0].pos_y += diff_y*CONST.POSITION_CORRECTION_PERCENT;
 			
-			if (Math.abs(diff_a) > Math.PI/6)
+			if (Math.abs(diff_a) > CONST.POSITION_CORRRECT_ANGLE)
 				player_arr[0].angle = data.angle;
-			else player_arr[0].angle += diff_a*0.1;
-				
+			else player_arr[0].angle += diff_a*CONST.POSITION_CORRECTION_PERCENT;
+			
 			player_arr[0].v_x = data.v_x;
 			player_arr[0].v_y = data.v_y;
 			player_arr[0].server_set = true;

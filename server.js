@@ -123,7 +123,7 @@ setInterval(function () {
 	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
 	var server_interval = main_timer.interval;
 	for (var u in player_list) player_list[u].player.update(server_interval);
-	console.log(server_interval);
+//	console.log(server_interval);
 },1000/CONST.UPS);
 
 // Listen for incoming connections from clients
@@ -162,8 +162,8 @@ io.sockets.on('connection', function (socket) {
 
 function Player(player_id){
 	this.p_id = player_id;
-	this.pos_x = CONST.MAP_WIDTH/2;
-	this.pos_y = CONST.MAP_HEIGHT/2;
+	this.pos_x = (0.1 + Math.random()*0.8)*CONST.MAP_WIDTH;
+	this.pos_y = (0.1 + Math.random()*0.8)*CONST.MAP_HEIGHT;
 	this.angle = 0;
 	
 	this.v_x = 0;
