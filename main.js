@@ -422,7 +422,7 @@ function Game()
 			var diff_y = data.y - player_arr[0].pos_y;
 			var diff_a = data.angle - player_arr[0].angle;
 			
-			if (Math.abs(diff_x) > CONST.POSITON_CORRECT_X)
+			if (Math.abs(diff_x) > CONST.POSITION_CORRECT_X)
 				player_arr[0].pos_x = data.x;
 			else player_arr[0].pos_x += diff_x*CONST.POSITION_CORRECTION_PERCENT;
 			

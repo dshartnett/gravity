@@ -70,13 +70,6 @@ Timer.prototype = {
 		var i = Date.now() - this.then;
 		this.then = Date.now();
 
-// alternate method is a bit more elegant but slower... array shifting is bad
-/*		this.time_array.push(i);
-		if (this.frame_count == CONST.FRAME_MAX)
-			this.time_count -= this.time_array.shift();
-		else
-			this.frame_count++;
-//*/
 		this.time_array_index++;
 		if (this.time_array_index >= CONST.FRAME_MAX) this.time_array_index = 0;
 
@@ -84,7 +77,6 @@ Timer.prototype = {
 		else this.frame_count++;
 
 		this.time_array[this.time_array_index] = i;
-//*/
 
 		this.time_count += i;
 		this.int_count++;
@@ -159,6 +151,38 @@ io.sockets.on('connection', function (socket) {
 		delete player_list[socket.id];
 	});
 });
+
+function Particle(x,y,v_x,v_y,color){
+        this.pos_x = x;
+        this.pos_y = y;
+        this.v_x = v_x;
+        this.v_y = v_y;
+        this.mass = CONST.PARTICLE_MASS;
+        this.charge = CONST.PARTICLE_CHARGE;
+        this.color = color;
+        this.size = CONST.PARTICLE_SIZE;
+        this.half_size = this.size/2;
+
+        this.update = function(interval) {
+                this.pos_x += this.v_x*interval;
+                this.pos_y += this.v_y*interval;
+
+                if (this.pos_x >= CONST.MAP_WIDTH) {this.pos_x = CONST.MAP_WIDTH - 1; this.v_x = -this.v_x*CONST.PARTICLE_WALL_LOSS;}
+                else if (this.pos_x <= 0) {this.pos_x = 1; this.v_x = -this.v_x*CONST.PARTICLE_WALL_LOSS;}
+
+                if (this.pos_y >= CONST.MAP_HEIGHT) {this.pos_y = CONST.MAP_HEIGHT - 1; this.v_y = -this.v_y*CONST.PARTICLE_WALL_LOSS;}
+                else if (this.pos_y <= 0) {this.pos_y = 1; this.v_y = -this.v_y*CONST.PARTICLE_WALL_LOSS;}
+        }
+
+        this.draw = function(context, pos_x, pos_y) {
+                context.fillStyle = this.color;
+                var x = this.pos_x - pos_x;
+                var y = this.pos_y - pos_y;
+                if (x >= 0 && x <= CONST.CANVAS_WIDTH && y >= 0 && y <= CONST.CANVAS_HEIGHT)
+                        context.fillRect(x - this.half_size, y - this.half_size, this.size, this.size);
+        }
+        return this;
+}
 
 function Player(player_id){
 	this.p_id = player_id;
