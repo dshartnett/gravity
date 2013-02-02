@@ -29,13 +29,6 @@ Timer.prototype = {
 		var i = Date.now() - this.then;
 		this.then = Date.now();
 
-// alternate method is a bit more elegant but slower... array shifting is bad
-/*		this.time_array.push(i);
-		if (this.frame_count == CONST.FRAME_MAX)
-			this.time_count -= this.time_array.shift();
-		else
-			this.frame_count++;
-//*/
 		this.time_array_index++;
 		if (this.time_array_index >= CONST.FRAME_MAX) this.time_array_index = 0;
 
@@ -43,7 +36,6 @@ Timer.prototype = {
 		else this.frame_count++;
 
 		this.time_array[this.time_array_index] = i;
-//*/
 
 		this.time_count += i;
 		this.int_count++;
@@ -133,7 +125,7 @@ function Player(){
 	
 	this.request_state = 0;
 	
-	this.server_set = false;
+	this.server_set = true;
 	
 	this.update = function (interval) {
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
@@ -262,6 +254,37 @@ function Player(){
 		}
 		context.restore();
 	};
+	
+	this.net_draw = function(context, pos_x, pos_y){
+		var x = this.pos_x - pos_x;
+		var y = this.pos_y - pos_y;
+		if (x >= 0 && x <= CONST.CANVAS_WIDTH && y >= 0 && y <= CONST.CANVAS_HEIGHT)
+		{
+			context.save();
+			context.translate(x, y);
+			context.rotate(this.angle);
+
+			var gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1*this.radius);
+			gradient.addColorStop(0, this.team_color);
+			gradient.addColorStop(1, "black");
+			
+			context.beginPath();
+			context.moveTo(this.radius,0);
+			context.lineTo(CONST.PLAYER_WING_ANGLE_COS,CONST.PLAYER_WING_ANGLE_SIN);
+			context.lineTo(0,0);
+			context.lineTo(CONST.PLAYER_WING_ANGLE_COS,-CONST.PLAYER_WING_ANGLE_SIN);
+			context.lineTo(this.radius,0);
+			context.closePath();
+		
+			context.fillStyle = gradient;
+			context.fill();
+			context.lineWidth = 1;
+			context.strokeStyle = "gray";
+			context.stroke();
+			
+			context.restore();
+		}
+	};
 	return this;
 }
 
@@ -322,11 +345,15 @@ function Game()
 	var frame_rates = false;
 	var quit = false;
 	
+	var player_col = {};
+	var player_id = 0;
+	
 	var player_arr = [];
 	var player_arr_size = 0;
 
 	var par_col = {}; // we'll try an object instead of a strict array
 	par_col[0] = new Particle(0,10,10,100,100,"lime");
+	
 	var par_arr = [];
 	var par_arr_index = 0;
 	var par_arr_size = 0;
@@ -335,18 +362,6 @@ function Game()
 	
 		background.initialize();
 
-		var bg_wait = function(){
-			if (background.background_ready){
-				main_canvas.appendTo("body");
-				self.update();
-				interval_id = setInterval(self.update, 1000/CONST.UPS);//*/
-				self.draw();
-			} else setTimeout(bg_wait, 500);
-		};
-		bg_wait();
-		
-		player_arr[0] = new Player();
-		player_arr_size = 1;
 		
 		$(window).keydown(function (key_code) {
 			if (debug) console.log("Key down: " + key_code.keyCode);
@@ -363,72 +378,92 @@ function Game()
 		
 		socket = io.connect(server_url);
 		if (!socket) console.log("Server is down");
-		socket.on("pong", function(data){
-			if (debug) console.log(data);
-			var diff_x = data.x - player_arr[0].pos_x;
-			var diff_y = data.y - player_arr[0].pos_y;
-			var diff_a = data.angle - player_arr[0].angle;
-			
-			if (Math.abs(diff_x) > CONST.POSITION_CORRECT_X)
-				player_arr[0].pos_x = data.x;
-			else player_arr[0].pos_x += diff_x*CONST.POSITION_CORRECTION_PERCENT;
-			
-			if (Math.abs(diff_y) > CONST.POSITION_CORRECT_Y)
-				player_arr[0].pos_y = data.y;
-			else player_arr[0].pos_y += diff_y*CONST.POSITION_CORRECTION_PERCENT;
-			
-			if (Math.abs(diff_a) > CONST.POSITION_CORRRECT_ANGLE)
-				player_arr[0].angle = data.angle;
-			else player_arr[0].angle += diff_a*CONST.POSITION_CORRECTION_PERCENT;
-			
-			player_arr[0].v_x = data.v_x;
-			player_arr[0].v_y = data.v_y;
-			player_arr[0].server_set = true;
-			//socket.emit("ping", player_arr[0].move_command_state);
-		});
-		//socket.emit("ping", player_arr[0].move_command_state);
 		
-
-		/*socket_worker = new Worker("socket_worker.js");
-		socket_worker.onmessage = function(e){ if (debug) console.log(e.data); };
-		socket_worker.postMessage({command:"connect",server:server_url});//*/
+		socket.on("connected", function(data){player_id = data;});
+		socket.on("player_removed", function(data){delete player_col[data];});
+		
+		
+		var bg_wait = function(){
+			if (background.background_ready && player_id != 0){
+			
+				player_col[player_id] = new Player();
+				
+				//console.log("reached declaration");
+				socket.on("pong", function(data){
+					if (player_id == 0) return;
+					if (typeof player_col[data.p_id] === 'undefined') player_col[data.p_id] = new Player();
+					if (debug) console.log(data);
+					var diff_x = data.x - player_col[data.p_id].pos_x;
+					var diff_y = data.y - player_col[data.p_id].pos_y;
+					var diff_a = data.angle - player_col[data.p_id].angle;
+					
+					if (Math.abs(diff_x) > CONST.POSITION_CORRECT_X)
+						player_col[data.p_id].pos_x = data.x;
+					else player_col[data.p_id].pos_x += diff_x*CONST.POSITION_CORRECTION_PERCENT;
+					
+					if (Math.abs(diff_y) > CONST.POSITION_CORRECT_Y)
+						player_col[data.p_id].pos_y = data.y;
+					else player_col[data.p_id].pos_y += diff_y*CONST.POSITION_CORRECTION_PERCENT;
+					
+					if (Math.abs(diff_a) > CONST.POSITION_CORRRECT_ANGLE)
+						player_col[data.p_id].angle = data.angle;
+					else player_col[data.p_id].angle += diff_a*CONST.POSITION_CORRECTION_PERCENT;
+					
+					player_col[data.p_id].v_x = data.v_x;
+					player_col[data.p_id].v_y = data.v_y;
+					player_col[data.p_id].server_set = true;
+					//socket.emit("ping", player_col[player_id].move_command_state);
+				});
+				//socket.emit("ping", player_col[player_id].move_command_state);
+				
+				main_canvas.appendTo("body");
+				self.update();
+				interval_id = setInterval(self.update, 1000/CONST.UPS);//*/
+				self.draw();
+			} else setTimeout(bg_wait, 500);
+		};
+		bg_wait();
+		
+		//player_arr[0] = new Player();
+		//player_arr_size = 1;
 	};
 
 	this.update = function () {
-		if (key_down[37]) player_arr[0].move_command_state += CONST.COMMAND_ROTATE_CC;
-		if (key_down[38]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_FORWARD;
-		if (key_down[39]) player_arr[0].move_command_state += CONST.COMMAND_ROTATE_CW;
-		if (key_down[40]) player_arr[0].move_command_state += CONST.COMMAND_MOVE_BACKWARD;
-		if (key_down[69]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_LEFT;
-		if (key_down[82]) player_arr[0].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
-		if (key_down[83]) player_arr[0].move_command_state += CONST.COMMAND_FIRE;
+		if (key_down[37]) player_col[player_id].move_command_state += CONST.COMMAND_ROTATE_CC;
+		if (key_down[38]) player_col[player_id].move_command_state += CONST.COMMAND_MOVE_FORWARD;
+		if (key_down[39]) player_col[player_id].move_command_state += CONST.COMMAND_ROTATE_CW;
+		if (key_down[40]) player_col[player_id].move_command_state += CONST.COMMAND_MOVE_BACKWARD;
+		if (key_down[69]) player_col[player_id].move_command_state += CONST.COMMAND_STRAFE_LEFT;
+		if (key_down[82]) player_col[player_id].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
+		if (key_down[83]) player_col[player_id].move_command_state += CONST.COMMAND_FIRE;
 		
 		var update_interval = update_timer.interval;
 
-//		if (player_arr[0].move_command_state > 0) socket_worker.postMessage(player_arr[0].move_command_state);
-		if (player_arr[0].server_set)
+//		if (player_col[player_id].move_command_state > 0) socket_worker.postMessage(player_col[player_id].move_command_state);
+		if (player_col[player_id].server_set)
 		{
-			socket.emit("ping", player_arr[0].move_command_state);
-			player_arr[0].server_set = false;
+			socket.emit("ping", player_col[player_id].move_command_state);
+			player_col[player_id].server_set = false;
 		}
 		
-		//player_arr[0].net_update(update_interval);
-		player_arr[0].update(update_interval);
+		//player_col[player_id].net_update(update_interval);
+		//player_col[player_id].update(update_interval);
+		for (var i in player_col) player_col[i].update(update_interval);
 		
 //		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(update_interval);
 		for (var i in par_col) par_col[i].update(update_interval);
 		
-		/*if (player_arr[0].request_state & CONST.COMMAND_FIRE)
+		/*if (player_col[player_id].request_state & CONST.COMMAND_FIRE)
 		{
 			if (par_arr_index >= CONST.PARTICLE_ARRAY_MAX_SIZE) par_arr_index = 0;
 			par_arr[par_arr_index] = new Particle(
-			 player_arr[0].pos_x + CONST.PLAYER_RADIUS*Math.cos(player_arr[0].angle),
-			 player_arr[0].pos_y + CONST.PLAYER_RADIUS*Math.sin(player_arr[0].angle),
-			 player_arr[0].v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(player_arr[0].angle),
-			 player_arr[0].v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(player_arr[0].angle),'lime');
+			 player_col[player_id].pos_x + CONST.PLAYER_RADIUS*Math.cos(player_col[player_id].angle),
+			 player_col[player_id].pos_y + CONST.PLAYER_RADIUS*Math.sin(player_col[player_id].angle),
+			 player_col[player_id].v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(player_col[player_id].angle),
+			 player_col[player_id].v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(player_col[player_id].angle),'lime');
 			par_arr_index++;
 			if (par_arr_size < CONST.PARTICLE_ARRAY_MAX_SIZE) par_arr_size++;
-			player_arr[0].request_state -= CONST.COMMAND_FIRE;
+			player_col[player_id].request_state -= CONST.COMMAND_FIRE;
 		}*/
 		
 		//socket.emit('ping', interval);
@@ -442,10 +477,11 @@ function Game()
 
 		var draw_interval = draw_timer.interval;
 
-		background.draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
-		//for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
-		for (var i in par_col) par_col[i].draw(main_context, player_arr[0].map_pos_x, player_arr[0].map_pos_y);
-		player_arr[0].draw(main_context);
+		background.draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
+		//for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
+		for (var i in par_col) par_col[i].draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
+		player_col[player_id].draw(main_context);
+		for (var i in player_col) if (i != player_id) player_col[i].net_draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
 		
 		if (frame_rates) console.log("draw interval: " + draw_interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
 	};

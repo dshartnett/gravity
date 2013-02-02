@@ -77,6 +77,7 @@ io.sockets.on('connection', function (socket) {
 	};
 
 	console.log("player " + PLAYER_ID + " connected on socket " + socket.id + ". ponging now...");
+	socket.emit("connected",PLAYER_ID);
 	socket.emit("pong",player_list[socket.id].player.data());
 
 	socket.on('ping', function(data) {
@@ -89,7 +90,8 @@ io.sockets.on('connection', function (socket) {
 		
 		player_list[socket.id].start_interval = Date.now();
 		
-		socket.volatile.emit("pong", player_list[socket.id].player.data());
+		//socket.volatile.emit("pong", player_list[socket.id].player.data());
+		for (var u in player_list) socket.volatile.emit("pong", player_list[u].player.data());
 		//setTimeout(function(){socket.emit("pong", player_list[socket.id].player.data());}, 200);
 	});
 
