@@ -405,9 +405,9 @@ function Game()
 						player_col[data.p_id].pos_y = data.y;
 					else player_col[data.p_id].pos_y += diff_y*CONST.POSITION_CORRECTION_PERCENT;
 					
-					if (Math.abs(diff_a) > CONST.POSITION_CORRRECT_ANGLE)
+					//if (Math.abs(diff_a) > CONST.POSITION_CORRRECT_ANGLE)
 						player_col[data.p_id].angle = data.angle;
-					else player_col[data.p_id].angle += diff_a*CONST.POSITION_CORRECTION_PERCENT;
+					//else player_col[data.p_id].angle += diff_a*CONST.POSITION_CORRECTION_PERCENT;
 					
 					player_col[data.p_id].v_x = data.v_x;
 					player_col[data.p_id].v_y = data.v_y;
