@@ -101,7 +101,7 @@ function Background ()
 	return this;
 }
 
-function Player(){
+function Player(team){
 	this.pos_x = 500;
 	this.pos_y = 500;
 	this.angle = 0;
@@ -109,7 +109,8 @@ function Player(){
 	this.v_y = 0;
 	this.radius = CONST.PLAYER_RADIUS;
 	this.wing_angle = CONST.PLAYER_WING_ANGLE;
-	this.team_color = 'lime';
+	
+	this.team = team;
 	
 	this.map_pos_x = this.pos_x - CONST.CANVAS_WIDTH/2;
 	this.map_pos_y = this.pos_y - CONST.CANVAS_HEIGHT/2;
@@ -221,7 +222,7 @@ function Player(){
 		context.rotate(this.angle);
 
 		var gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1*this.radius);
-		gradient.addColorStop(0, this.team_color);
+		gradient.addColorStop(0, this.team);
 		gradient.addColorStop(1, "black");
 		
 		context.beginPath();
@@ -265,7 +266,7 @@ function Player(){
 			context.rotate(this.angle);
 
 			var gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1*this.radius);
-			gradient.addColorStop(0, this.team_color);
+			gradient.addColorStop(0, this.team);
 			gradient.addColorStop(1, "black");
 			
 			context.beginPath();
@@ -347,9 +348,6 @@ function Game()
 	
 	var player_col = {};
 	var player_id = 0;
-	
-	var player_arr = [];
-	var player_arr_size = 0;
 
 	var par_col = {}; // we'll try an object instead of a strict array
 	par_col[0] = new Particle(0,10,10,100,100,"lime");
@@ -379,19 +377,30 @@ function Game()
 		socket = io.connect(server_url);
 		if (!socket) console.log("Server is down");
 		
-		socket.on("connected", function(data){player_id = data;});
-		socket.on("player_removed", function(data){delete player_col[data];});
+		socket.on("connected", function(data){ player_id = data.p_id; player_col[player_id] = new Player(data.team); });
+		
+		//socket.on("player_added", function(data){ player_col[data] = new Player(); });
+		socket.on("player_list", function(data){
+			for (var u in data)
+			{
+				if (typeof player_col[u] === 'undefined') player_col[u] = new Player(data[u]);
+			}
+		});
+		socket.on("player_removed", function(data){delete player_col[data]; });
 		
 		
-		var bg_wait = function(){
+		var init_wait = function(){
 			if (background.background_ready && player_id != 0){
 			
-				player_col[player_id] = new Player();
 				
 				//console.log("reached declaration");
 				socket.on("pong", function(data){
 					if (player_id == 0) return;
-					if (typeof player_col[data.p_id] === 'undefined') player_col[data.p_id] = new Player();
+					if (typeof player_col[data.p_id] === 'undefined')
+					{
+						socket.emit("request_player_list", player_id);
+						return;
+					}
 					if (debug) console.log(data);
 					var diff_x = data.x - player_col[data.p_id].pos_x;
 					var diff_y = data.y - player_col[data.p_id].pos_y;
@@ -420,12 +429,10 @@ function Game()
 				self.update();
 				interval_id = setInterval(self.update, 1000/CONST.UPS);//*/
 				self.draw();
-			} else setTimeout(bg_wait, 500);
+			} else setTimeout(init_wait, 500);
 		};
-		bg_wait();
 		
-		//player_arr[0] = new Player();
-		//player_arr_size = 1;
+		init_wait();
 	};
 
 	this.update = function () {

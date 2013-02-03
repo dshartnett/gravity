@@ -73,14 +73,22 @@ io.sockets.on('connection', function (socket) {
 	player_list[socket.id] = {
 		start_interval: Date.now(),
 		end_interval: null,
-		player:new Player(PLAYER_ID)
+		player:new Player(PLAYER_ID, Math.random()>0.5?"red":"blue")
 	};
 
-	console.log("player " + PLAYER_ID + " connected on socket " + socket.id + ". ponging now...");
-	socket.emit("connected",PLAYER_ID);
+	console.log("player " + player_list[socket.id].player.p_id + " connected on socket " + socket.id + ". ponging now...");
+	
+	socket.emit("connected",{p_id:player_list[socket.id].player.p_id, team:player_list[socket.id].player.team});
+	//socket.broadcast.emit('player_added', player_list[socket.id].player.p_id);
 	socket.emit("pong",player_list[socket.id].player.data());
 
-	socket.on('ping', function(data) {
+	socket.on("request_player_list", function(data) {
+		var p_list = {};
+		for (var u in player_list) p_list[player_list[u].player.p_id] = player_list[u].player.team;
+		socket.emit("player_list", p_list);
+	});
+	
+	socket.on("ping", function(data) {
 		player_list[socket.id].end_interval = Date.now();
 		var interval = player_list[socket.id].end_interval - player_list[socket.id].start_interval;
 		console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.p_id + "  socket id: " + socket.id + " interval: " + interval);
@@ -97,7 +105,7 @@ io.sockets.on('connection', function (socket) {
 
 	socket.on('disconnect', function(){
 		console.log("player " + player_list[socket.id].player.p_id + " disconnected");
-		socket.broadcast.emit('player_removed', PLAYER_ID);
+		socket.broadcast.emit('player_removed', player_list[socket.id].player.p_id);
 		delete player_list[socket.id];
 	});
 });
@@ -134,7 +142,7 @@ function Particle(x,y,v_x,v_y,color){
         return this;
 }
 
-function Player(player_id){
+function Player(player_id, team){
 	this.p_id = player_id;
 	this.pos_x = (0.1 + Math.random()*0.8)*CONST.MAP_WIDTH;
 	this.pos_y = (0.1 + Math.random()*0.8)*CONST.MAP_HEIGHT;
@@ -144,7 +152,7 @@ function Player(player_id){
 	this.v_y = 0;
 	this.radius = CONST.PLAYER_RADIUS;
 	this.wing_angle = CONST.PLAYER_WING_ANGLE;
-	this.team_color = 'red';
+	this.team = team;
 	
 	this.mass = CONST.PLAYER_MASS;
 	
