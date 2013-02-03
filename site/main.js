@@ -385,6 +385,13 @@ function Game()
 		});
 		socket.on("player_removed", function(data){delete player_col[data]; });
 		
+		socket.on("par", function(data){
+			if (typeof par_col[data.id] === 'undefined') par_col[data.id] = new Particle(data.id,data.x,data.y,data.v_x,data.v_y,"lime");
+			par_col[data.id].pos_x = data.x;
+			par_col[data.id].pos_y = data.y;
+			par_col[data.id].v_x = data.v_x;
+			par_col[data.id].v_y = data.v_y;
+		});
 		
 		var init_wait = function(){
 			if (background.background_ready && player_id != 0){

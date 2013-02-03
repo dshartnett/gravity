@@ -54,6 +54,10 @@ io.set('log level', 1);
 
 var PLAYER_ID = 0;
 var player_list = {};
+
+var PAR_ID = 0;
+var par_col = {};
+
 var OBJECT_ID = 0;
 var object_list = {};
 
@@ -62,13 +66,14 @@ var main_timer = new Timer();
 setInterval(function () {
 	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
 	var server_interval = main_timer.interval;
-	for (var u in player_list) player_list[u].player.update(server_interval);
+	for (var u in player_list) player_list[u].player.update(server_interval, par_col);
+	for (var u in par_col) par_col[u].update(server_interval);
 //	console.log(server_interval);
 },1000/CONST.UPS);
 
 // Listen for incoming connections from clients
 io.sockets.on('connection', function (socket) {
-	PLAYER_ID++;
+	++PLAYER_ID;
 
 	player_list[socket.id] = {
 		start_interval: Date.now(),
@@ -91,15 +96,16 @@ io.sockets.on('connection', function (socket) {
 	socket.on("ping", function(data) {
 		player_list[socket.id].end_interval = Date.now();
 		var interval = player_list[socket.id].end_interval - player_list[socket.id].start_interval;
-		console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.p_id + "  socket id: " + socket.id + " interval: " + interval);
+		//console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.p_id + "  socket id: " + socket.id + " interval: " + interval);
 
 		player_list[socket.id].player.move_command_state = data;
 		//player_list[socket.id].player.update(interval);
-		
+
 		player_list[socket.id].start_interval = Date.now();
-		
+
 		//socket.volatile.emit("pong", player_list[socket.id].player.data());
 		for (var u in player_list) socket.volatile.emit("pong", player_list[u].player.data());
+		for (var u in par_col) socket.volatile.emit("par", par_col[u].data());
 		//setTimeout(function(){socket.emit("pong", player_list[socket.id].player.data());}, 200);
 	});
 
@@ -110,7 +116,7 @@ io.sockets.on('connection', function (socket) {
 	});
 });
 
-function Particle(x,y,v_x,v_y,color){
+function Particle(x,y,v_x,v_y,color,particle_id,player_id){
         this.pos_x = x;
         this.pos_y = y;
         this.v_x = v_x;
@@ -120,7 +126,12 @@ function Particle(x,y,v_x,v_y,color){
         this.color = color;
         this.size = CONST.PARTICLE_SIZE;
         this.half_size = this.size/2;
+		
+		this.particle_id = particle_id;
+		this.player_id = player_id;
 
+		this.data = function() {return {id:this.particle_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y};};
+		
         this.update = function(interval) {
                 this.pos_x += this.v_x*interval;
                 this.pos_y += this.v_y*interval;
@@ -158,14 +169,18 @@ function Player(player_id, team){
 	
 	this.shield_fade = 0;
 	this.fire_battery = 0;
+	//this.fire_request = false;
 	
 	this.move_command_state = 0;
 	
 	this.server_set = false;
+	
+	var particle_ids = [CONST.PLAYER_MAX_BULLETS];
+	var p_counter = 0;
 
 	this.data = function() { return {p_id:this.p_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y, angle:this.angle};};
 
-	this.update = function (interval) {
+	this.update = function (interval, par_col) {
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
 		this.v_y -= CONST.PLAYER_FRICTION*this.v_y*interval;
 
@@ -194,14 +209,23 @@ function Player(player_id, team){
 			this.v_x -= CONST.PLAYER_ACCELERATION*interval*Math.sin(this.angle);
 			this.v_y += CONST.PLAYER_ACCELERATION*interval*Math.cos(this.angle);
 		}
-		/*
+		
 		if (this.fire_battery <= 0 && this.move_command_state & CONST.COMMAND_FIRE)
 		{
-			this.request_state += CONST.COMMAND_FIRE;
+			//this.request_state += CONST.COMMAND_FIRE;
+			//this.fire_request = true;
 			this.fire_battery = CONST.PLAYER_FIRE_BATTERY;
 			this.v_x -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
 			this.v_y -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
-		}*/
+			par_col[++PAR_ID] = new Particle(
+				this.pos_x + CONST.PLAYER_RADIUS*Math.cos(this.angle),
+				this.pos_y + CONST.PLAYER_RADIUS*Math.sin(this.angle),
+				this.v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle),
+				this.v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle),
+				"lime", PAR_ID, this.p_id);
+			console.log("player " + this.p_id + " fired particle " + PAR_ID);
+		}
+		//else this.fire_request = false;
 
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
