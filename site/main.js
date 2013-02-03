@@ -381,10 +381,7 @@ function Game()
 		
 		//socket.on("player_added", function(data){ player_col[data] = new Player(); });
 		socket.on("player_list", function(data){
-			for (var u in data)
-			{
-				if (typeof player_col[u] === 'undefined') player_col[u] = new Player(data[u]);
-			}
+			for (var u in data) if (typeof player_col[u] === 'undefined') player_col[u] = new Player(data[u]);
 		});
 		socket.on("player_removed", function(data){delete player_col[data]; });
 		
