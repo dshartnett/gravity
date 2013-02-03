@@ -96,7 +96,7 @@ io.sockets.on('connection', function (socket) {
 	socket.on("ping", function(data) {
 		player_list[socket.id].end_interval = Date.now();
 		var interval = player_list[socket.id].end_interval - player_list[socket.id].start_interval;
-		//console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.p_id + "  socket id: " + socket.id + " interval: " + interval);
+		console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.p_id + "  socket id: " + socket.id + " interval: " + interval);
 
 		player_list[socket.id].player.move_command_state = data;
 		//player_list[socket.id].player.update(interval);
@@ -175,8 +175,7 @@ function Player(player_id, team){
 	
 	this.server_set = false;
 	
-	var particle_ids = [CONST.PLAYER_MAX_BULLETS];
-	var p_counter = 0;
+	var particle_ids = [];
 
 	this.data = function() { return {p_id:this.p_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y, angle:this.angle};};
 
@@ -223,7 +222,14 @@ function Player(player_id, team){
 				this.v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle),
 				this.v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle),
 				"lime", PAR_ID, this.p_id);
+				
 			console.log("player " + this.p_id + " fired particle " + PAR_ID);
+			particle_ids.push(PAR_ID);
+			if (particle_ids.length > CONST.PLAYER_MAX_BULLETS){
+				var last_p = particle_ids.shift();
+				console.log("deleting particle " + last_p + " from player " + this.p_id);
+				delete par_col[last_p];
+			}
 		}
 		//else this.fire_request = false;
 
