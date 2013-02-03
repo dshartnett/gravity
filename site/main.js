@@ -350,7 +350,7 @@ function Game()
 	var player_id = 0;
 
 	var par_col = {}; // we'll try an object instead of a strict array
-	par_col[0] = new Particle(0,10,10,100,100,"lime");
+	//par_col[0] = new Particle(0,10,10,100,100,"lime");
 	
 	var par_arr = [];
 	var par_arr_index = 0;
@@ -387,11 +387,21 @@ function Game()
 		
 		socket.on("par", function(data){
 			if (typeof par_col[data.id] === 'undefined') par_col[data.id] = new Particle(data.id,data.x,data.y,data.v_x,data.v_y,"lime");
-			par_col[data.id].pos_x = data.x;
-			par_col[data.id].pos_y = data.y;
+			var diff_x = data.x - par_col[data.id].pos_x;
+			var diff_y = data.y - par_col[data.id].pos_y;
+			
+			if (Math.abs(diff_x) > CONST.PARTICLE_CORRECT_X)
+				par_col[data.id].pos_x = data.x;
+			else par_col[data.id].pos_x += diff_x*CONST.PARTICLE_CORRECTION_PERCENT;
+			
+			if (Math.abs(diff_y) > CONST.PARTICLE_CORRECT_Y)
+				par_col[data.id].pos_y = data.y;
+			else par_col[data.id].pos_y += diff_y*CONST.PARTICLE_CORRECTION_PERCENT;
+			
 			par_col[data.id].v_x = data.v_x;
 			par_col[data.id].v_y = data.v_y;
 		});
+		socket.on("par_delete", function(data) { delete par_col[data]; });
 		
 		var init_wait = function(){
 			if (background.background_ready && player_id != 0){
@@ -463,21 +473,6 @@ function Game()
 		
 //		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(update_interval);
 		for (var i in par_col) par_col[i].update(update_interval);
-		
-		/*if (player_col[player_id].request_state & CONST.COMMAND_FIRE)
-		{
-			if (par_arr_index >= CONST.PARTICLE_ARRAY_MAX_SIZE) par_arr_index = 0;
-			par_arr[par_arr_index] = new Particle(
-			 player_col[player_id].pos_x + CONST.PLAYER_RADIUS*Math.cos(player_col[player_id].angle),
-			 player_col[player_id].pos_y + CONST.PLAYER_RADIUS*Math.sin(player_col[player_id].angle),
-			 player_col[player_id].v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(player_col[player_id].angle),
-			 player_col[player_id].v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(player_col[player_id].angle),'lime');
-			par_arr_index++;
-			if (par_arr_size < CONST.PARTICLE_ARRAY_MAX_SIZE) par_arr_size++;
-			player_col[player_id].request_state -= CONST.COMMAND_FIRE;
-		}*/
-		
-		//socket.emit('ping', interval);
 
 		if (frame_rates) console.log("update interval: " + update_interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
 		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}

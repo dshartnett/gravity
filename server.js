@@ -57,17 +57,20 @@ var player_list = {};
 
 var PAR_ID = 0;
 var par_col = {};
-
-var OBJECT_ID = 0;
-var object_list = {};
+var par_ids_to_del = [];
 
 var main_timer = new Timer();
 
 setInterval(function () {
 	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
 	var server_interval = main_timer.interval;
-	for (var u in player_list) player_list[u].player.update(server_interval, par_col);
+	for (var u in player_list) player_list[u].player.update(server_interval, par_col, par_ids_to_del);
 	for (var u in par_col) par_col[u].update(server_interval);
+	for (var i = 0, len = par_ids_to_del.length; i < len; i++) {
+		console.log("deleting particle " + par_ids_to_del[0] + " and emitting delete");
+		io.sockets.emit("par_delete", par_ids_to_del[0]);
+		delete par_col[par_ids_to_del.shift()];
+	}
 //	console.log(server_interval);
 },1000/CONST.UPS);
 
@@ -96,7 +99,7 @@ io.sockets.on('connection', function (socket) {
 	socket.on("ping", function(data) {
 		player_list[socket.id].end_interval = Date.now();
 		var interval = player_list[socket.id].end_interval - player_list[socket.id].start_interval;
-		console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.p_id + "  socket id: " + socket.id + " interval: " + interval);
+		//console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.p_id + "  socket id: " + socket.id + " interval: " + interval);
 
 		player_list[socket.id].player.move_command_state = data;
 		//player_list[socket.id].player.update(interval);
@@ -179,7 +182,7 @@ function Player(player_id, team){
 
 	this.data = function() { return {p_id:this.p_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y, angle:this.angle};};
 
-	this.update = function (interval, par_col) {
+	this.update = function (interval, par_col, par_ids_to_del) {
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
 		this.v_y -= CONST.PLAYER_FRICTION*this.v_y*interval;
 
@@ -228,7 +231,8 @@ function Player(player_id, team){
 			if (particle_ids.length > CONST.PLAYER_MAX_BULLETS){
 				var last_p = particle_ids.shift();
 				console.log("deleting particle " + last_p + " from player " + this.p_id);
-				delete par_col[last_p];
+				par_ids_to_del.push(last_p);
+				//delete par_col[last_p];
 			}
 		}
 		//else this.fire_request = false;
