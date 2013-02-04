@@ -124,7 +124,7 @@ function Player(team){
 	
 	this.move_command_state = 0;
 	
-	this.request_state = 0;
+	//this.request_state = 0;
 	
 	this.server_set = true;
 	
@@ -160,7 +160,7 @@ function Player(team){
 		
 		if (this.fire_battery <= 0 && this.move_command_state & CONST.COMMAND_FIRE)
 		{
-			this.request_state += CONST.COMMAND_FIRE;
+			//this.request_state += CONST.COMMAND_FIRE;
 			this.fire_battery = CONST.PLAYER_FIRE_BATTERY;
 			this.v_x -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
 			this.v_y -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
@@ -256,10 +256,10 @@ function Player(team){
 		context.restore();
 	};
 	
-	this.net_draw = function(context, pos_x, pos_y){
-		var x = this.pos_x - pos_x;
-		var y = this.pos_y - pos_y;
-		if (x >= 0 && x <= CONST.CANVAS_WIDTH && y >= 0 && y <= CONST.CANVAS_HEIGHT)
+	this.net_draw = function(context, map_pos_x, map_pos_y){
+		var x = this.pos_x - map_pos_x;
+		var y = this.pos_y - map_pos_y;
+		if (x >= (-this.radius) && x <= (CONST.CANVAS_WIDTH + this.radius) && y >= (-this.radius) && y <= (CONST.CANVAS_HEIGHT + this.radius))
 		{
 			context.save();
 			context.translate(x, y);
@@ -312,10 +312,10 @@ function Particle(p_id,x,y,v_x,v_y,color){
 		else if (this.pos_y <= 0) {this.pos_y = 1; this.v_y = -this.v_y*CONST.PARTICLE_WALL_LOSS;}
 	}
 
-	this.draw = function(context, pos_x, pos_y) {
+	this.draw = function(context, map_pos_x, map_pos_y) {
 		context.fillStyle = this.color;
-		var x = this.pos_x - pos_x;
-		var y = this.pos_y - pos_y;
+		var x = this.pos_x - map_pos_x;
+		var y = this.pos_y - map_pos_y;
 		if (x >= 0 && x <= CONST.CANVAS_WIDTH && y >= 0 && y <= CONST.CANVAS_HEIGHT)
 			context.fillRect(x - this.half_size, y - this.half_size, this.size, this.size);
 	}
