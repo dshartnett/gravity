@@ -118,7 +118,9 @@ function Player(team){
 	this.canvas_pos_y = CONST.CANVAS_HEIGHT/2;
 	
 	this.mass = CONST.PLAYER_MASS;
-	
+
+	this.health = CONST.PLAYER_MAX_HEALTH;
+	this.health_then = CONST.PLAYER_MAX_HEALTH;
 	this.shield_fade = 0;
 	this.fire_battery = 0;
 	
@@ -169,15 +171,18 @@ function Player(team){
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
 
+		if (this.health < this.health_then) this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;
+		this.health_then = this.health;
+
 		// Handles wall bounce
 		if (this.pos_x - this.radius <= 0)
-			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
 		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH)
-			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius;}
 		if (this.pos_y - this.radius <= 0)
-			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = this.radius;}
 		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
-			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius;}
 
 		// Handles map location for drawing
 		if (this.pos_x <= CONST.CANVAS_WIDTH/2)
@@ -222,7 +227,7 @@ function Player(team){
 		context.rotate(this.angle);
 
 		var gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1*this.radius);
-		gradient.addColorStop(0, this.team);
+		gradient.addColorStop(0, CONST.TEAM_DARK[this.team]);
 		gradient.addColorStop(1, "black");
 		
 		context.beginPath();
@@ -245,7 +250,7 @@ function Player(team){
 			context.arc(0,0,CONST.PLAYER_SHIELD_RADIUS,0,2*Math.PI,false);
 			gradient = context.createRadialGradient(0, 0, 0, 0, 0, this.radius*2);
 			gradient.addColorStop(0, "transparent");
-			gradient.addColorStop(1-this.shield_fade/CONST.PLAYER_SHIELD_FADE_MAX, "cyan");
+			gradient.addColorStop(1-this.shield_fade/CONST.PLAYER_SHIELD_FADE_MAX, CONST.TEAM_LIGHT[this.team]);
 			gradient.addColorStop(1, "transparent");
 			context.fillStyle = gradient;
 			context.fill();
@@ -254,6 +259,26 @@ function Player(team){
 			context.stroke();
 		}
 		context.restore();
+
+
+		if (this.health > 0){
+		for (var i = -1; i <= 1; i += 2){
+			context.save();
+			context.translate(CONST.HEALTH_LOCATION_X,CONST.HEALTH_LOCATION_Y);
+			context.scale(i,1)
+			context.beginPath();
+			gradient = context.createLinearGradient(0,0,CONST.HEALTH_WIDTH,0);
+			gradient.addColorStop(0, CONST.TEAM_DARK[this.team]);
+			gradient.addColorStop(1, CONST.TEAM_LIGHT[this.team]);
+			context.rect(0,0,CONST.HEALTH_WIDTH*this.health/CONST.PLAYER_MAX_HEALTH, CONST.HEALTH_HEIGHT);
+			context.fillStyle = gradient;
+			context.fill();
+			context.lineWidth = 1;
+			context.strokeStyle = CONST.TEAM_DARK[this.team];
+			context.stroke();
+			context.restore();
+		}}
+
 	};
 	
 	this.net_draw = function(context, map_pos_x, map_pos_y){
@@ -266,7 +291,7 @@ function Player(team){
 			context.rotate(this.angle);
 
 			var gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1*this.radius);
-			gradient.addColorStop(0, this.team);
+			gradient.addColorStop(0, CONST.TEAM_DARK[this.team]);
 			gradient.addColorStop(1, "black");
 			
 			context.beginPath();
@@ -282,7 +307,22 @@ function Player(team){
 			context.lineWidth = 1;
 			context.strokeStyle = "gray";
 			context.stroke();
-			
+
+			if (this.shield_fade > 0)
+			{
+				context.beginPath();
+				context.arc(0,0,CONST.PLAYER_SHIELD_RADIUS,0,2*Math.PI,false);
+				gradient = context.createRadialGradient(0, 0, 0, 0, 0, this.radius*2);
+				gradient.addColorStop(0, "transparent");
+				gradient.addColorStop(1-this.shield_fade/CONST.PLAYER_SHIELD_FADE_MAX, CONST.TEAM_LIGHT[this.team]);
+				gradient.addColorStop(1, "transparent");
+				context.fillStyle = gradient;
+				context.fill();
+//				context.lineWidth = 0;
+//				context.strokeStyle = "white";
+				context.stroke();
+			}
+		
 			context.restore();
 		}
 	};
@@ -434,6 +474,7 @@ function Game()
 					
 					player_col[data.p_id].v_x = data.v_x;
 					player_col[data.p_id].v_y = data.v_y;
+					player_col[data.p_id].health = data.health;
 					player_col[data.p_id].server_set = true;
 					//socket.emit("ping", player_col[player_id].move_command_state);
 				});
@@ -486,8 +527,8 @@ function Game()
 		background.draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
 		//for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
 		for (var i in par_col) par_col[i].draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
-		player_col[player_id].draw(main_context);
 		for (var i in player_col) if (i != player_id) player_col[i].net_draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
+		player_col[player_id].draw(main_context);
 		
 		if (frame_rates) console.log("draw interval: " + draw_interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
 	};

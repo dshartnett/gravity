@@ -81,7 +81,7 @@ io.sockets.on('connection', function (socket) {
 	player_list[socket.id] = {
 		start_interval: Date.now(),
 		end_interval: null,
-		player:new Player(PLAYER_ID, Math.random()>0.5?"red":"blue")
+		player:new Player(PLAYER_ID, Math.random()>0.5?CONST.TEAM1:CONST.TEAM2)
 	};
 
 	console.log("player " + player_list[socket.id].player.player_id + " connected on socket " + socket.id + ". ponging now...");
@@ -99,7 +99,7 @@ io.sockets.on('connection', function (socket) {
 	socket.on("ping", function(data) {
 		player_list[socket.id].end_interval = Date.now();
 		var interval = player_list[socket.id].end_interval - player_list[socket.id].start_interval;
-		//console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.player_id + "  socket id: " + socket.id + " interval: " + interval);
+		console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.player_id + "  socket id: " + socket.id + " interval: " + interval);
 
 		player_list[socket.id].player.move_command_state = data;
 		//player_list[socket.id].player.update(interval);
@@ -244,6 +244,8 @@ function Player(player_id, team){
 
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
+		if (this.health < CONST.PLAYER_MAX_HEALTH) this.health += CONST.PLAYER_HEALTH_REGEN*interval;
+		if (this.health > CONST.PLAYER_MAX_HEALTH) this.health = CONST.PLAYER_MAX_HEALTH;
 		
 		for (var i in par_col)
 		{
@@ -261,13 +263,13 @@ function Player(player_id, team){
 		}
 
 		if (this.pos_x - this.radius <= 0)
-			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius; this.health -= CONST.WALL_DAMAGE;}
 		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH)
-			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius; this.health -= CONST.WALL_DAMAGE;}
 		if (this.pos_y - this.radius <= 0)
-			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = this.radius; this.health -= CONST.WALL_DAMAGE;}
 		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
-			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.shield_fade = CONST.PLAYER_SHIELD_FADE_MAX;}
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.health -= CONST.WALL_DAMAGE;}
 	};
 	return this;
 }
