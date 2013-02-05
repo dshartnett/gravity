@@ -64,8 +64,8 @@ var main_timer = new Timer();
 setInterval(function () {
 	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
 	var server_interval = main_timer.interval;
-	for (var u in player_list) player_list[u].player.update(server_interval, par_col, par_ids_to_del);
 	for (var u in par_col) par_col[u].update(server_interval);
+	for (var u in player_list) player_list[u].player.update(server_interval, par_col, par_ids_to_del);
 	for (var i = 0, len = par_ids_to_del.length; i < len; i++) {
 		console.log("deleting particle " + par_ids_to_del[0] + " and emitting delete");
 		io.sockets.emit("par_delete", par_ids_to_del[0]);
@@ -81,7 +81,7 @@ io.sockets.on('connection', function (socket) {
 	player_list[socket.id] = {
 		start_interval: Date.now(),
 		end_interval: null,
-		player:new Player(PLAYER_ID, Math.random()>0.5?CONST.TEAM1:CONST.TEAM2)
+		player:new Player(PLAYER_ID, Math.random()>0.5?CONST.TEAM1:CONST.TEAM3)
 	};
 
 	console.log("player " + player_list[socket.id].player.player_id + " connected on socket " + socket.id + ". ponging now...");
