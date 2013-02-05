@@ -185,6 +185,16 @@ function Player(player_id, team){
 	
 	var particle_ids = [];
 
+	this.spawn = function()
+	{
+		this.health = CONST.PLAYER_MAX_HEALTH;
+		this.v_x = 0;
+		this.v_y = 0;
+		this.angle = Math.random()*2*Math.PI;
+		this.pos_x = (0.1 + Math.random()*0.8)*CONST.MAP_WIDTH;
+		this.pos_y = (0.1 + Math.random()*0.8)*CONST.MAP_HEIGHT;
+	};
+
 	this.data = function() { return {p_id:this.player_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y, angle:this.angle, health:this.health};};
 
 	this.update = function (interval, par_col, par_ids_to_del) {
@@ -263,13 +273,15 @@ function Player(player_id, team){
 		}
 
 		if (this.pos_x - this.radius <= 0)
-			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius; this.health -= CONST.WALL_DAMAGE;}
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius; this.health -= CONST.WALL_DAMAGE_MULTIPLIER*this.v_x + CONST.WALL_DAMAGE_MINIMUM;}
 		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH)
-			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius; this.health -= CONST.WALL_DAMAGE;}
+			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius; this.health -= -CONST.WALL_DAMAGE_MULTIPLIER*this.v_x + CONST.WALL_DAMAGE_MINIMUM;}
 		if (this.pos_y - this.radius <= 0)
-			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = this.radius; this.health -= CONST.WALL_DAMAGE;}
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = this.radius; this.health -= CONST.WALL_DAMAGE_MULTIPLIER*this.v_y + CONST.WALL_DAMAGE_MINIMUM;}
 		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
-			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.health -= CONST.WALL_DAMAGE;}
+			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.health -= -CONST.WALL_DAMAGE_MULTIPLIER*this.v_y + CONST.WALL_DAMAGE_MINIMUM;}
+
+		if (this.health <= 0) this.spawn();
 	};
 	return this;
 }
