@@ -60,7 +60,7 @@ var par_col = {};
 var par_ids_to_del = [];
 
 var obj_col = {};
-obj_col[0] = new G_Object(CONST.MAP_WIDTH/2, CONST.MAP_HEIGHT/2, 0, 0, 2);
+obj_col[0] = new G_Object(CONST.MAP_WIDTH/2, CONST.MAP_HEIGHT/2, 1, 1, 2);
 
 var main_timer = new Timer();
 
