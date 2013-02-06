@@ -52,7 +52,7 @@ function Background ()
 
 	var background_canvas = $("<canvas id='background_canvas' width='" + CONST.MAP_WIDTH + "' height='" + CONST.MAP_HEIGHT + "'>Update your browser :P</canvas>");
 	var background_context = background_canvas.get(0).getContext('2d');
-	var background_img = new Image();
+	//var background_img = new Image();
 
 	var sf_0 = [];
 	var pf_0 = [];
@@ -82,15 +82,22 @@ function Background ()
 		}
 		
 		console.log("Loading background to memory...");
-		background_img.onload = function() {self.ready();};
+		/*background_img.onload = function() {self.ready();};
 		background_img.src = background_canvas.get(0).toDataURL();
+		//*/this.background_ready = true;
 	}
 
 	this.ready = function () {console.log("Background loaded."); this.background_ready = true;}
 
 	this.draw = function (context, pos_x, pos_y) {
-		context.drawImage(background_img, pos_x, pos_y, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT, 0, 0, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT);
-		/*context.fillStyle = 'black';
+		//context.drawImage(background_img, pos_x, pos_y, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT, 0, 0, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT);
+		var gradient = context.createLinearGradient(-pos_x,-pos_y,CONST.MAP_WIDTH-pos_x,CONST.MAP_HEIGHT-pos_y);
+		gradient.addColorStop(0.0,"black");
+		gradient.addColorStop(0.3,"black");
+		gradient.addColorStop(0.5,"purple");
+		gradient.addColorStop(0.7,"black");
+		gradient.addColorStop(1.0,"black");
+		context.fillStyle = gradient;//'black';
 		context.fillRect(0,0,CONST.CANVAS_WIDTH,CONST.CANVAS_HEIGHT);
 		context.fillStyle = 'white';
 		for (var i = 0; i < CONST.BACKGROUND_STARS0; i++)
@@ -508,7 +515,6 @@ function Game()
 			player_col[player_id].server_set = false;
 		}
 		
-		//player_col[player_id].net_update(update_interval);
 		//player_col[player_id].update(update_interval);
 		for (var i in player_col) player_col[i].update(update_interval);
 		

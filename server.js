@@ -64,8 +64,8 @@ var main_timer = new Timer();
 setInterval(function () {
 	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
 	var server_interval = main_timer.interval;
-	for (var u in par_col) par_col[u].update(server_interval);
 	for (var u in player_list) player_list[u].player.update(server_interval, par_col, par_ids_to_del);
+	for (var u in par_col) par_col[u].update(server_interval);
 	for (var i = 0, len = par_ids_to_del.length; i < len; i++) {
 		console.log("deleting particle " + par_ids_to_del[0] + " and emitting delete");
 		io.sockets.emit("par_delete", par_ids_to_del[0]);
@@ -81,7 +81,7 @@ io.sockets.on('connection', function (socket) {
 	player_list[socket.id] = {
 		start_interval: Date.now(),
 		end_interval: null,
-		player:new Player(PLAYER_ID, Math.random()>0.5?CONST.TEAM1:CONST.TEAM3)
+		player:new Player(PLAYER_ID, Math.ceil(4*Math.random()))
 	};
 
 	console.log("player " + player_list[socket.id].player.player_id + " connected on socket " + socket.id + ". ponging now...");
@@ -162,22 +162,25 @@ function Particle(x,y,v_x,v_y,color,particle_id,player_id){
 
 function Player(player_id, team){
 	this.player_id = player_id;
+	this.team = team;
+	
 	this.pos_x = (0.1 + Math.random()*0.8)*CONST.MAP_WIDTH;
 	this.pos_y = (0.1 + Math.random()*0.8)*CONST.MAP_HEIGHT;
 	this.angle = 0;
-	
 	this.v_x = 0;
 	this.v_y = 0;
+	
 	this.radius = CONST.PLAYER_RADIUS;
 	this.wing_angle = CONST.PLAYER_WING_ANGLE;
-	this.team = team;
 	
 	this.health = CONST.PLAYER_MAX_HEALTH;
 	this.mass = CONST.PLAYER_MASS;
 	
-	this.shield_fade = 0;
+	//this.shield_fade = 0;
+	this.dying_counter = 0;
 	this.fire_battery = 0;
 	//this.fire_request = false;
+	this.status = 0;
 	
 	this.move_command_state = 0;
 	
@@ -193,15 +196,26 @@ function Player(player_id, team){
 		this.angle = Math.random()*2*Math.PI;
 		this.pos_x = (0.1 + Math.random()*0.8)*CONST.MAP_WIDTH;
 		this.pos_y = (0.1 + Math.random()*0.8)*CONST.MAP_HEIGHT;
+		this.dying_counter = 0;
+		this.fire_battery = 0;
+		this.status = 0;
 	};
 
-	this.data = function() { return {p_id:this.player_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y, angle:this.angle, health:this.health};};
+	this.data = function() { return {p_id:this.player_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y, angle:this.angle, health:this.health, status:this.status};};
 
 	this.update = function (interval, par_col, par_ids_to_del) {
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
 		this.v_y -= CONST.PLAYER_FRICTION*this.v_y*interval;
 
-		if (this.shield_fade > 0) this.shield_fade -= interval;
+		if (this.status & CONST.PLAYER_STATUS_DEAD)
+		{
+			this.dying_counter -= interval;
+			this.move_command_state = 0;
+		}
+		
+		if (this.dying_counter < 0) this.spawn();
+		
+		//if (this.shield_fade > 0) this.shield_fade -= interval;
 		if (this.fire_battery > 0) this.fire_battery -= interval;
 
 		if (this.move_command_state & CONST.COMMAND_ROTATE_CC) this.angle -= CONST.PLAYER_ROTATE_SPEED*interval;
@@ -235,8 +249,8 @@ function Player(player_id, team){
 			this.v_x -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
 			this.v_y -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
 			par_col[++PAR_ID] = new Particle(
-				this.pos_x + CONST.PLAYER_RADIUS*Math.cos(this.angle),
-				this.pos_y + CONST.PLAYER_RADIUS*Math.sin(this.angle),
+				this.pos_x,// + CONST.PLAYER_RADIUS*Math.cos(this.angle),
+				this.pos_y,// + CONST.PLAYER_RADIUS*Math.sin(this.angle),
 				this.v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle),
 				this.v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle),
 				"lime", PAR_ID, this.player_id);
@@ -254,7 +268,7 @@ function Player(player_id, team){
 
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
-		if (this.health < CONST.PLAYER_MAX_HEALTH) this.health += CONST.PLAYER_HEALTH_REGEN*interval;
+		if (this.health < CONST.PLAYER_MAX_HEALTH && !(this.status & CONST.PLAYER_STATUS_DEAD)) this.health += CONST.PLAYER_HEALTH_REGEN*interval;
 		if (this.health > CONST.PLAYER_MAX_HEALTH) this.health = CONST.PLAYER_MAX_HEALTH;
 		
 		for (var i in par_col)
@@ -281,7 +295,7 @@ function Player(player_id, team){
 		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
 			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.health -= -CONST.WALL_DAMAGE_MULTIPLIER*this.v_y + CONST.WALL_DAMAGE_MINIMUM;}
 
-		if (this.health <= 0) this.spawn();
+		if (this.health < 0 && !(this.status & CONST.PLAYER_STATUS_DEAD)) {this.status |= CONST.PLAYER_STATUS_DEAD; this.dying_counter = CONST.PLAYER_DEAD_COUNTER_MAX;}
 	};
 	return this;
 }
