@@ -59,8 +59,9 @@ var PAR_ID = 0;
 var par_col = {};
 var par_ids_to_del = [];
 
+var OBJ_ID = 0;
 var obj_col = {};
-obj_col[0] = new G_Object(CONST.MAP_WIDTH/2, CONST.MAP_HEIGHT/2, 1, 1, 2);
+obj_col[++OBJ_ID] = new G_Object(CONST.MAP_WIDTH/2, CONST.MAP_HEIGHT/2, 0.1, 0.1, 2);
 
 var main_timer = new Timer();
 
@@ -309,9 +310,12 @@ function G_Object(x, y, v_x, v_y, team)
 	this.pos_y = y;
 	this.v_x = v_x;
 	this.v_y = v_y;
-	this.radius = CONST.G_OBJECT_MAX_RADIUS;
+	this.radius = CONST.G_OBJECT_MIN_RADIUS;
 	this.team = team;
 	this.mass = CONST.G_OBJECT_MASS;
+
+	this.timer = CONST.G_OBJECT_TIME_TO_DET;
+	this.status = 0;
 	
 	this.update = function(par_col, player_list, interval)
 	{		
@@ -326,66 +330,52 @@ function G_Object(x, y, v_x, v_y, team)
 			
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
-				
-		var disX, disY, distance2, distance, force;
-		for (var i in par_col)
-		{
-			//if (this.team == par_col[i].team){
-				disX = this.pos_x - par_col[i].pos_x;
-				disY = this.pos_y - par_col[i].pos_y;
-				distance2 = disX*disX + disY*disY;
-				if (distance2 > this.radius*this.radius)
-				{
-					distance = Math.sqrt(distance2);
-					force = this.mass/distance2;
-					par_col[i].v_x += interval*disX*force/distance;
-					par_col[i].v_y += interval*disY*force/distance;
-				}
-				else
-				{
-					par_col[i].v_x -= CONST.G_OBJECT_FRICTION*par_col[i].v_x*interval;
-					par_col[i].v_y -= CONST.G_OBJECT_FRICTION*par_col[i].v_y*interval;
-				}
-				/*else
-				{
-					//	par_col[i].vX += 0.00001*disX*par_col[i].mass;
-					//	par_col[i].vY += 0.00001*disY*par_col[i].mass;
-					par_col[i].vX += interval*C_ROTATION*(disX-disY);//-0.001*disY + 0.001*disX;
-					par_col[i].vY += interval*C_ROTATION*(disX+disY);//0.001*disX + 0.001*disY;
-					par_col[i].vX *= C_FRICTION;
-					par_col[i].vY *= C_FRICTION;
-				}//*/
-			//}
-		}
-		for (var i in player_list)
-		{
-			if (this.team != player_list[i].player.team){
-				disX = this.pos_x - player_list[i].player.pos_x;
-				disY = this.pos_y - player_list[i].player.pos_y;
-				distance2 = disX*disX + disY*disY;
-				if (distance2 > this.radius*this.radius)
-				{
-					distance = Math.sqrt(distance2);
-					force = this.mass/distance2;
-					player_list[i].player.v_x += interval*disX*force/distance;
-					player_list[i].player.v_y += interval*disY*force/distance;
-				}
+
+		this.timer -= interval;
+		if (this.timer < 0){
+			if (this.status == 0){
+				this.status |= CONST.G_OBJECT_STATUS_DETONATED;
+				this.timer = CONST.G_OBJECT_TIME_TO_LAST;
+				this.radius = CONST.G_OBJECT_MAX_RADIUS;
 			}
+			if (this.status & CONST.G_OBJECT_STATUS_DETONATED) ;//add to objects to delete
 		}
-		/*
-		for (var i = 0; i < PLAYER_NUM; i++)
+
+		if (this.status & CONST.G_OBJECT_STATUS_DETONATED)
 		{
-			disX = this.X - player_arr[i].X;
-			disY = this.Y - player_arr[i].Y;
-			distance2 = disX*disX + disY*disY;
-			if (distance2 > this.radius*this.radius)
+			var disX, disY, distance2, distance, force;
+			for (var i in par_col)
 			{
-				distance = Math.sqrt(distance2);
-				force = this.charge*player_arr[i].charge/distance2;
-				player_arr[i].vX += interval*disX*force/distance/player_arr[i].mass;
-				player_arr[i].vY += interval*disY*force/distance/player_arr[i].mass;
+					disX = this.pos_x - par_col[i].pos_x;
+					disY = this.pos_y - par_col[i].pos_y;
+					distance2 = disX*disX + disY*disY;
+					if (distance2 > this.radius*this.radius)
+					{
+						distance = Math.sqrt(distance2);
+						force = this.mass/distance2;
+						par_col[i].v_x += interval*disX*force/distance;
+						par_col[i].v_y += interval*disY*force/distance;
+					}
+					else
+					{
+						par_col[i].v_x -= CONST.G_OBJECT_FRICTION*par_col[i].v_x*interval;
+						par_col[i].v_y -= CONST.G_OBJECT_FRICTION*par_col[i].v_y*interval;
+					}
 			}
-		}//*/
+			for (var i in player_list){
+				if (this.team != player_list[i].player.team){
+					disX = this.pos_x - player_list[i].player.pos_x;
+					disY = this.pos_y - player_list[i].player.pos_y;
+					distance2 = disX*disX + disY*disY;
+					if (distance2 > this.radius*this.radius){
+						distance = Math.sqrt(distance2);
+						force = this.mass/distance2;
+						player_list[i].player.v_x += interval*disX*force/distance;
+						player_list[i].player.v_y += interval*disY*force/distance;
+					}
+				}
+			}
+		}
 	}
 	
 	this.draw = function ()
