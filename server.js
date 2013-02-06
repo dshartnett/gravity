@@ -59,6 +59,9 @@ var PAR_ID = 0;
 var par_col = {};
 var par_ids_to_del = [];
 
+var obj_col = {};
+obj_col[0] = new G_Object(CONST.MAP_WIDTH/2, CONST.MAP_HEIGHT/2, 0, 0, 2);
+
 var main_timer = new Timer();
 
 setInterval(function () {
@@ -71,6 +74,7 @@ setInterval(function () {
 		io.sockets.emit("par_delete", par_ids_to_del[0]);
 		delete par_col[par_ids_to_del.shift()];
 	}
+	for (var u in obj_col) obj_col[u].update(par_col,player_list,server_interval);
 //	console.log(server_interval);
 },1000/CONST.UPS);
 
@@ -115,11 +119,12 @@ io.sockets.on('connection', function (socket) {
 	socket.on('disconnect', function(){
 		console.log("player " + player_list[socket.id].player.player_id + " disconnected");
 		socket.broadcast.emit('player_removed', player_list[socket.id].player.player_id);
+		player_list[socket.id].player.disconnect(par_ids_to_del);
 		delete player_list[socket.id];
 	});
 });
 
-function Particle(x,y,v_x,v_y,color,particle_id,player_id){
+function Particle(x,y,v_x,v_y,team,particle_id,player_id){
         this.pos_x = x;
         this.pos_y = y;
 		this.last_pos_x = x;
@@ -128,10 +133,10 @@ function Particle(x,y,v_x,v_y,color,particle_id,player_id){
         this.v_y = v_y;
         this.mass = CONST.PARTICLE_MASS;
         this.charge = CONST.PARTICLE_CHARGE;
-        this.color = color;
         this.size = CONST.PARTICLE_SIZE;
         this.half_size = this.size/2;
 		
+        this.team = team;
 		this.particle_id = particle_id;
 		this.player_id = player_id;
 
@@ -148,14 +153,6 @@ function Particle(x,y,v_x,v_y,color,particle_id,player_id){
 
                 if (this.pos_y >= CONST.MAP_HEIGHT) {this.pos_y = CONST.MAP_HEIGHT - 1; this.v_y = -this.v_y*CONST.PARTICLE_WALL_LOSS;}
                 else if (this.pos_y <= 0) {this.pos_y = 1; this.v_y = -this.v_y*CONST.PARTICLE_WALL_LOSS;}
-        }
-
-        this.draw = function(context, pos_x, pos_y) {
-                context.fillStyle = this.color;
-                var x = this.pos_x - pos_x;
-                var y = this.pos_y - pos_y;
-                if (x >= 0 && x <= CONST.CANVAS_WIDTH && y >= 0 && y <= CONST.CANVAS_HEIGHT)
-                        context.fillRect(x - this.half_size, y - this.half_size, this.size, this.size);
         }
         return this;
 }
@@ -188,6 +185,11 @@ function Player(player_id, team){
 	
 	var particle_ids = [];
 
+	this.disconnect = function(par_ids_to_del)
+	{
+		for (var i in particle_ids) par_ids_to_del.push(particle_ids[i]);
+	};
+	
 	this.spawn = function()
 	{
 		this.health = CONST.PLAYER_MAX_HEALTH;
@@ -253,7 +255,7 @@ function Player(player_id, team){
 				this.pos_y,// + CONST.PLAYER_RADIUS*Math.sin(this.angle),
 				this.v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle),
 				this.v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle),
-				"lime", PAR_ID, this.player_id);
+				this.team, PAR_ID, this.player_id);
 				
 			console.log("player " + this.player_id + " fired particle " + PAR_ID);
 			particle_ids.push(PAR_ID);
@@ -273,7 +275,7 @@ function Player(player_id, team){
 		
 		for (var i in par_col)
 		{
-			if (par_col[i].player_id != this.player_id)
+			if (par_col[i].team != this.team)
 			{
 				var diff_x = par_col[i].pos_x - this.pos_x;
 				var diff_y = par_col[i].pos_y - this.pos_y;
@@ -297,6 +299,113 @@ function Player(player_id, team){
 
 		if (this.health < 0 && !(this.status & CONST.PLAYER_STATUS_DEAD)) {this.status |= CONST.PLAYER_STATUS_DEAD; this.dying_counter = CONST.PLAYER_DEAD_COUNTER_MAX;}
 	};
+	return this;
+}
+
+// Gravity object class
+function G_Object(x, y, v_x, v_y, team)
+{
+	this.pos_x = x;
+	this.pos_y = y;
+	this.v_x = v_x;
+	this.v_y = v_y;
+	this.radius = CONST.G_OBJECT_MAX_RADIUS;
+	this.team = team;
+	this.mass = CONST.G_OBJECT_MASS;
+	
+	this.update = function(par_col, player_list, interval)
+	{		
+		if (this.pos_x - this.radius <= 0)
+			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
+		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH)
+			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius;}
+		if (this.pos_y - this.radius <= 0)
+			{this.v_y = -CONST.G_OBJECT_WALL_LOSS*this.v_y; this.pos_y = this.radius;}
+		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
+			{this.v_y = -CONST.G_OBJECT_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius;}
+			
+		this.pos_x += this.v_x*interval;
+		this.pos_y += this.v_y*interval;
+				
+		var disX, disY, distance2, distance, force;
+		for (var i in par_col)
+		{
+			//if (this.team == par_col[i].team){
+				disX = this.pos_x - par_col[i].pos_x;
+				disY = this.pos_y - par_col[i].pos_y;
+				distance2 = disX*disX + disY*disY;
+				if (distance2 > this.radius*this.radius)
+				{
+					distance = Math.sqrt(distance2);
+					force = this.mass/distance2;
+					par_col[i].v_x += interval*disX*force/distance;
+					par_col[i].v_y += interval*disY*force/distance;
+				}
+				else
+				{
+					par_col[i].v_x -= CONST.G_OBJECT_FRICTION*par_col[i].v_x*interval;
+					par_col[i].v_y -= CONST.G_OBJECT_FRICTION*par_col[i].v_y*interval;
+				}
+				/*else
+				{
+					//	par_col[i].vX += 0.00001*disX*par_col[i].mass;
+					//	par_col[i].vY += 0.00001*disY*par_col[i].mass;
+					par_col[i].vX += interval*C_ROTATION*(disX-disY);//-0.001*disY + 0.001*disX;
+					par_col[i].vY += interval*C_ROTATION*(disX+disY);//0.001*disX + 0.001*disY;
+					par_col[i].vX *= C_FRICTION;
+					par_col[i].vY *= C_FRICTION;
+				}//*/
+			//}
+		}
+		for (var i in player_list)
+		{
+			if (this.team != player_list[i].player.team){
+				disX = this.pos_x - player_list[i].player.pos_x;
+				disY = this.pos_y - player_list[i].player.pos_y;
+				distance2 = disX*disX + disY*disY;
+				if (distance2 > this.radius*this.radius)
+				{
+					distance = Math.sqrt(distance2);
+					force = this.mass/distance2;
+					player_list[i].player.v_x += interval*disX*force/distance;
+					player_list[i].player.v_y += interval*disY*force/distance;
+				}
+			}
+		}
+		/*
+		for (var i = 0; i < PLAYER_NUM; i++)
+		{
+			disX = this.X - player_arr[i].X;
+			disY = this.Y - player_arr[i].Y;
+			distance2 = disX*disX + disY*disY;
+			if (distance2 > this.radius*this.radius)
+			{
+				distance = Math.sqrt(distance2);
+				force = this.charge*player_arr[i].charge/distance2;
+				player_arr[i].vX += interval*disX*force/distance/player_arr[i].mass;
+				player_arr[i].vY += interval*disY*force/distance/player_arr[i].mass;
+			}
+		}//*/
+	}
+	
+	this.draw = function ()
+	{
+		this.grd = canvas.createRadialGradient(this.X, this.Y, 0, this.X, this.Y, 1*this.radius);
+		this.grd.addColorStop(0, "transparent")
+		this.grabbedBody ? this.grd.addColorStop(0.3+this.flipStage*.6, this.color) :
+		this.grd.addColorStop(0.3+this.flipStage*.6, this.color);
+		this.grd.addColorStop(1, "transparent");
+		
+		canvas.beginPath();
+		canvas.arc(this.X,this.Y,this.radius,0,2*Math.PI,false);
+		canvas.fillStyle = this.grd;
+		canvas.fill();
+		canvas.lineWidth = drawRadius;
+		canvas.strokeStyle = drawRadCol;
+		//canvas.strokeStyle = "transparent";
+		canvas.stroke();
+	}
+	
 	return this;
 }
 
