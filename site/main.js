@@ -553,9 +553,13 @@ function Game()
 			var diff_x = data.x - obj_col[data.id].pos_x;
 			var diff_y = data.y - obj_col[data.id].pos_y;
 
-			//if (Math.abs(diff_x) > CONST.G_OBJECT_CORRECT_X)
-			obj_col[data.id].pos_x = data.x;
-			obj_col[data.id].pos_y = data.y;
+			if (Math.abs(diff_x) > CONST.G_OBJECT_POSITION_CORRECT_X)
+				obj_col[data.id].pos_x = data.x;
+			else obj_col[data.id].pos_x += diff_x*CONST.POSITION_CORRECTION_PERCENT;
+	
+			if (Math.abs(diff_y) > CONST.G_OBJECT_POSITION_CORRECT_Y)
+				obj_col[data.id].pos_y = data.y;
+			else obj_col[data.id].pos_y += diff_y*CONST.POSITION_CORRECTION_PERCENT;
 
 			obj_col[data.id].v_x = data.v_x;
 			obj_col[data.id].v_y = data.v_y;
