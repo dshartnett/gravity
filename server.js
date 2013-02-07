@@ -69,6 +69,7 @@ setInterval(function () {
 	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
 	var server_interval = main_timer.interval;
 //	if(100*Math.random() < 1) obj_col[++OBJ_ID] = new G_Object(Math.random()*CONST.MAP_WIDTH, Math.random()*CONST.MAP_HEIGHT, 0, 0, 0, OBJ_ID, 0);
+	if(100*Math.random() < 1) obj_col[++OBJ_ID] = new Power_Up_Object(OBJ_ID, Math.random()*CONST.MAP_WIDTH, Math.random()*CONST.MAP_HEIGHT, Math.random()*0.1, Math.random()*0.1, CONST.POWER_UP_G_OBJECT);
 	for (var u in player_list) player_list[u].player.update(server_interval, par_col, obj_col, par_ids_to_del);
 	for (var u in par_col) par_col[u].update(server_interval);
 	for (var i = 0, len = par_ids_to_del.length; i < len; i++) {
@@ -323,6 +324,33 @@ function Player(player_id, team){
 				}
 			}
 		}
+		
+		for (var u in obj_col)
+		{
+			if (obj_col[u].object_type == CONST.OBJ_POWER_UP)
+			{
+				var diff_x = obj_col[u].pos_x - this.pos_x;
+				var diff_y = obj_col[u].pos_y - this.pos_y;
+				if (diff_x*diff_x + diff_y*diff_y < this.radius*this.radius)
+				{
+					switch(obj_col[u].power_up_type)
+					{
+						case CONST.POWER_UP_CLOAK:
+						break;
+						case CONST.POWER_UP_INVINCIBLE:
+						break;
+						case CONST.POWER_UP_G_OBJECT:
+							if (this.g_object < 1)
+							{
+								this.g_object = obj_col[u].power_up();
+							}
+						break;
+						case CONST.POWER_UP_BOMB:
+						break;
+					}
+				}
+			}
+		}
 
 		if (this.pos_x - this.radius <= 0)
 			{this.v_x = -CONST.PLAYER_WALL_LOSS*this.v_x; this.pos_x = this.radius; this.health -= CONST.WALL_DAMAGE_MULTIPLIER*this.v_x + CONST.WALL_DAMAGE_MINIMUM;}
@@ -337,6 +365,54 @@ function Player(player_id, team){
 	};
 	return this;
 }
+
+function Power_Up_Object(obj_id, x, y, v_x, v_y, power_up_type)
+{
+	this.obj_id = obj_id;
+	this.pos_x = x;
+	this.pos_y = y;
+	this.v_x = v_x;
+	this.v_y = v_y;
+	this.radius = CONST.POWER_UP_RADIUS;
+	this.object_type = CONST.OBJ_POWER_UP;
+	this.power_up_type = power_up_type;
+	
+	this.item = 1;
+	
+	this.power_up = function()
+	{
+		var to_ret = this.item;
+		this.item = 0;
+		return to_ret;
+	}
+	
+	this.data = function(){
+		return {id:this.obj_id,
+			type:this.object_type,
+			p_t: this.power_up_type,
+			x:this.pos_x,
+			y:this.pos_y,
+			v_x:this.v_x,
+			v_y:this.v_y};
+	};
+	
+	this.update = function(interval, par_col, player_list, obj_ids_to_del)
+	{		
+		if (this.pos_x - this.radius <= 0)
+			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
+		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH)
+			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius;}
+		if (this.pos_y - this.radius <= 0)
+			{this.v_y = -CONST.G_OBJECT_WALL_LOSS*this.v_y; this.pos_y = this.radius;}
+		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
+			{this.v_y = -CONST.G_OBJECT_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius;}
+			
+		this.pos_x += this.v_x*interval;
+		this.pos_y += this.v_y*interval;
+		
+		if (this.item == 0) obj_ids_to_del.push(this.obj_id);
+	};
+};
 
 // Gravity object class
 function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
@@ -357,15 +433,15 @@ function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
 	this.status = 0;
 
 	this.data = function(){
-	return {id:this.obj_id,
-		type:this.object_type,
-		x:this.pos_x,
-		y:this.pos_y,
-		v_x:this.v_x,
-		v_y:this.v_y,
-		team:this.team,
-		status:this.status,
-		timer:this.timer};
+		return {id:this.obj_id,
+			type:this.object_type,
+			x:this.pos_x,
+			y:this.pos_y,
+			v_x:this.v_x,
+			v_y:this.v_y,
+			team:this.team,
+			status:this.status,
+			timer:this.timer};
 	};
 
 	this.update = function(interval, par_col, player_list, obj_ids_to_del)
@@ -436,26 +512,7 @@ function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
 				}
 			}
 		}
-	}
-	
-	this.draw = function ()
-	{
-		this.grd = canvas.createRadialGradient(this.X, this.Y, 0, this.X, this.Y, 1*this.radius);
-		this.grd.addColorStop(0, "transparent")
-		this.grabbedBody ? this.grd.addColorStop(0.3+this.flipStage*.6, this.color) :
-		this.grd.addColorStop(0.3+this.flipStage*.6, this.color);
-		this.grd.addColorStop(1, "transparent");
-		
-		canvas.beginPath();
-		canvas.arc(this.X,this.Y,this.radius,0,2*Math.PI,false);
-		canvas.fillStyle = this.grd;
-		canvas.fill();
-		canvas.lineWidth = drawRadius;
-		canvas.strokeStyle = drawRadCol;
-		//canvas.strokeStyle = "transparent";
-		canvas.stroke();
-	}
-	
+	};
 	return this;
 }
 
