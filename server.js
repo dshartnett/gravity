@@ -303,6 +303,10 @@ function Player(player_id, team){
 
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
+		
+		this.status &= ~CONST.PLAYER_STATUS_MOVING;
+		this.status |= this.move_command_state & CONST.PLAYER_MOVING?CONST.PLAYER_STATUS_MOVING:0;
+		
 		if (this.health < CONST.PLAYER_MAX_HEALTH && !(this.status & CONST.PLAYER_STATUS_DEAD)) this.health += CONST.PLAYER_HEALTH_REGEN*interval;
 		if (this.health > CONST.PLAYER_MAX_HEALTH) this.health = CONST.PLAYER_MAX_HEALTH;
 		

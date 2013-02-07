@@ -213,27 +213,6 @@ function Player(team){
 		this.move_command_state = 0;
 	};
 	
-	this.net_update = function (interval) {
-	
-	//	this.pos_x += this.v_x*interval;
-	//	this.pos_y += this.v_y*interval;
-
-		// Handles map location for drawing
-		if (this.pos_x <= CONST.CANVAS_WIDTH/2)
-			{this.map_pos_x = 0; this.canvas_pos_x = this.pos_x;}
-		else if (this.pos_x >= CONST.MAP_WIDTH - CONST.CANVAS_WIDTH/2)
-			{this.map_pos_x = CONST.MAP_WIDTH - CONST.CANVAS_WIDTH; this.canvas_pos_x = CONST.CANVAS_WIDTH - CONST.MAP_WIDTH + this.pos_x;}
-		else {this.map_pos_x = this.pos_x - CONST.CANVAS_WIDTH/2; this.canvas_pos_x = CONST.CANVAS_WIDTH/2;}
-
-		if (this.pos_y <= CONST.CANVAS_HEIGHT/2)
-			{this.map_pos_y = 0; this.canvas_pos_y = this.pos_y;}
-		else if (this.pos_y >= CONST.MAP_HEIGHT - CONST.CANVAS_HEIGHT/2)
-			{this.map_pos_y = CONST.MAP_HEIGHT - CONST.CANVAS_HEIGHT; this.canvas_pos_y = CONST.CANVAS_HEIGHT - CONST.MAP_HEIGHT + this.pos_y;}
-		else {this.map_pos_y = this.pos_y - CONST.CANVAS_HEIGHT/2; this.canvas_pos_y = CONST.CANVAS_HEIGHT/2;}
-		
-		this.move_command_state = 0;
-	};
-	
 	this.draw = function (context) {
 		context.save();
 		context.translate(this.canvas_pos_x, this.canvas_pos_y);
@@ -291,6 +270,18 @@ function Player(team){
 			context.stroke();
 			context.restore();
 		}}
+		
+		if (this.status & CONST.PLAYER_STATUS_HAS_G_OBJECT)
+		{
+			context.save();
+			context.translate(CONST.HAS_G_LOCATION_X, CONST.HAS_G_LOCATION_Y);
+			gradient = context.createRadialGradient(CONST.INFO_BOX_SIDE/2, CONST.INFO_BOX_SIDE/2, 0, CONST.INFO_BOX_SIDE/2, CONST.INFO_BOX_SIDE/2, CONST.INFO_BOX_SIDE);
+			gradient.addColorStop(0, CONST.TEAM_LIGHT[CONST.TEAM0]);
+			gradient.addColorStop(1, CONST.TEAM_DARK[CONST.TEAM0]);
+			context.fillStyle = gradient;
+			context.fillRect(0, 0, CONST.INFO_BOX_SIDE, CONST.INFO_BOX_SIDE);
+			context.restore();
+		}
 
 	};
 	
@@ -437,8 +428,8 @@ function G_Object(x, y, v_x, v_y, team)
 			context.fill();
 			context.stroke();
 			if (this.status == 0){
-				context.fillStyle = "black";
-				context.font = "bold 20px Courier";
+				context.fillStyle = CONST.POWER_UP_TEXT_COLOR;
+				context.font = CONST.POWER_UP_FONT;
 				context.fillText(Math.ceil(this.timer/1000),-6,5);
 			}
 			context.restore();
