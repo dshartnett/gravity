@@ -369,6 +369,80 @@ function Particle(p_id,x,y,v_x,v_y,color){
 	return this;
 }
 
+// Gravity object class
+function G_Object(x, y, v_x, v_y, team)
+{
+	this.pos_x = x;
+	this.pos_y = y;
+	this.v_x = v_x;
+	this.v_y = v_y;
+	this.radius = CONST.G_OBJECT_MIN_RADIUS;
+	this.mass = CONST.G_OBJECT_MASS;
+
+	this.object_type = CONST.OBJ_G_OBJECT;
+	this.team = team;
+
+	this.timer = CONST.G_OBJECT_TIME_TO_DET;
+	this.status = 0;
+
+
+	this.update = function(interval, par_col, player_list, obj_ids_to_del)
+	{		
+		if (this.pos_x - this.radius <= 0)
+			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
+		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH)
+			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius;}
+		if (this.pos_y - this.radius <= 0)
+			{this.v_y = -CONST.G_OBJECT_WALL_LOSS*this.v_y; this.pos_y = this.radius;}
+		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
+			{this.v_y = -CONST.G_OBJECT_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius;}
+			
+		this.pos_x += this.v_x*interval;
+		this.pos_y += this.v_y*interval;
+
+		this.timer -= interval;
+	}
+	
+	this.draw = function (context, map_pos_x, map_pos_y)
+	{
+		var x = this.pos_x - map_pos_x;
+		var y = this.pos_y - map_pos_y;
+
+/*		this.grd = canvas.createRadialGradient(this.X, this.Y, 0, this.X, this.Y, 1*this.radius);
+		this.grd.addColorStop(0, "transparent")
+		this.grabbedBody ? this.grd.addColorStop(0.3+this.flipStage*.6, this.color) :
+		this.grd.addColorStop(0.3+this.flipStage*.6, this.color);
+		this.grd.addColorStop(1, "transparent");
+		
+		canvas.beginPath();
+		canvas.arc(this.X,this.Y,this.radius,0,2*Math.PI,false);
+		canvas.fillStyle = this.grd;
+		canvas.fill();
+		canvas.lineWidth = drawRadius;
+		canvas.strokeStyle = drawRadCol;
+		//canvas.strokeStyle = "transparent";
+		canvas.stroke();*/
+
+		if (x >= (-this.radius) && x <= (CONST.CANVAS_WIDTH + this.radius) && y >= (-this.radius) && y <= (CONST.CANVAS_HEIGHT + this.radius))
+		{
+			context.save();
+			context.translate(x, y);
+
+			var gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1*this.radius);
+			gradient.addColorStop(0, CONST.TEAM_DARK[this.team]);
+			gradient.addColorStop(1, CONST.TEAM_LIGHT[this.team]);
+			context.beginPath();
+			context.arc(0,0,CONST.PLAYER_SHIELD_RADIUS,0,2*Math.PI,false);
+			context.fillStyle = gradient;
+			context.fill();
+			context.stroke();
+			context.restore();
+		}
+	}
+	
+	return this;
+}
+
 function Game()
 {
 	var self = this;
@@ -402,6 +476,8 @@ function Game()
 	var par_arr = [];
 	var par_arr_index = 0;
 	var par_arr_size = 0;
+
+	var obj_col = {};
 
 	this.initialize = function () {
 	
@@ -449,6 +525,30 @@ function Game()
 			par_col[data.id].v_y = data.v_y;
 		});
 		socket.on("par_delete", function(data) { delete par_col[data]; });
+
+		socket.on("obj", function(data){
+			if (typeof obj_col[data.id] === 'undefined'){
+				switch (data.type){
+				case CONST.OBJ_G_OBJECT:
+					obj_col[data.id] = new G_Object(data.x, data.y, data.v_x, data.v_y, data.team);
+				break;
+				}
+			}
+
+			var diff_x = data.x - obj_col[data.id].pos_x;
+			var diff_y = data.y - obj_col[data.id].pos_y;
+
+			//if (Math.abs(diff_x) > CONST.G_OBJECT_CORRECT_X)
+			obj_col[data.id].pos_x = data.x;
+			obj_col[data.id].pos_y = data.y;
+
+			obj_col[data.id].v_x = data.v_x;
+			obj_col[data.id].v_y = data.v_y;
+
+			obj_col[data.id].status = data.status;
+			obj_col[data.id].timer = data.timer;
+		});
+		socket.on("obj_delete", function(data) { delete obj_col[data]; });
 		
 		var init_wait = function(){
 			if (background.background_ready && player_id != 0){
@@ -505,6 +605,7 @@ function Game()
 		if (key_down[69]) player_col[player_id].move_command_state += CONST.COMMAND_STRAFE_LEFT;
 		if (key_down[82]) player_col[player_id].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
 		if (key_down[83]) player_col[player_id].move_command_state += CONST.COMMAND_FIRE;
+		if (key_down[71]) player_col[player_id].move_command_state += CONST.COMMAND_G_OBJECT;
 		
 		var update_interval = update_timer.interval;
 
@@ -521,6 +622,8 @@ function Game()
 //		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(update_interval);
 		for (var i in par_col) par_col[i].update(update_interval);
 
+		for (var u in obj_col) obj_col[u].update(update_interval);
+
 		if (frame_rates) console.log("update interval: " + update_interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
 		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
 	};
@@ -532,6 +635,7 @@ function Game()
 
 		background.draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
 		//for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
+		for (var u in obj_col) obj_col[u].draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
 		for (var i in par_col) par_col[i].draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
 		for (var i in player_col) if (i != player_id) player_col[i].net_draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
 		player_col[player_id].draw(main_context);

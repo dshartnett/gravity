@@ -61,21 +61,27 @@ var par_ids_to_del = [];
 
 var OBJ_ID = 0;
 var obj_col = {};
-obj_col[++OBJ_ID] = new G_Object(CONST.MAP_WIDTH/2, CONST.MAP_HEIGHT/2, 0.1, 0.1, 2);
+var obj_ids_to_del = [];
+obj_col[++OBJ_ID] = new G_Object(CONST.MAP_WIDTH/2, CONST.MAP_HEIGHT/2, 0.1, 0.1, 2, OBJ_ID, 0);
 
 var main_timer = new Timer();
 
 setInterval(function () {
 	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
 	var server_interval = main_timer.interval;
-	for (var u in player_list) player_list[u].player.update(server_interval, par_col, par_ids_to_del);
+	for (var u in player_list) player_list[u].player.update(server_interval, par_col, obj_col, par_ids_to_del);
 	for (var u in par_col) par_col[u].update(server_interval);
 	for (var i = 0, len = par_ids_to_del.length; i < len; i++) {
 		console.log("deleting particle " + par_ids_to_del[0] + " and emitting delete");
 		io.sockets.emit("par_delete", par_ids_to_del[0]);
 		delete par_col[par_ids_to_del.shift()];
 	}
-	for (var u in obj_col) obj_col[u].update(par_col,player_list,server_interval);
+	for (var u in obj_col) obj_col[u].update(server_interval, par_col, player_list, obj_ids_to_del);
+	for (var i = 0, len = obj_ids_to_del.length; i < len; i++) {
+		console.log("deleting object " + obj_ids_to_del[0] + " and emitting delete");
+		io.sockets.emit("obj_delete", obj_ids_to_del[0]);
+		delete obj_col[obj_ids_to_del.shift()];
+	}
 //	console.log(server_interval);
 },1000/CONST.UPS);
 
@@ -104,7 +110,7 @@ io.sockets.on('connection', function (socket) {
 	socket.on("ping", function(data) {
 		player_list[socket.id].end_interval = Date.now();
 		var interval = player_list[socket.id].end_interval - player_list[socket.id].start_interval;
-		console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.player_id + "  socket id: " + socket.id + " interval: " + interval);
+		//console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.player_id + "  socket id: " + socket.id + " interval: " + interval);
 
 		player_list[socket.id].player.move_command_state = data;
 		//player_list[socket.id].player.update(interval);
@@ -114,6 +120,7 @@ io.sockets.on('connection', function (socket) {
 		//socket.volatile.emit("pong", player_list[socket.id].player.data());
 		for (var u in player_list) socket.volatile.emit("pong", player_list[u].player.data());
 		for (var u in par_col) socket.volatile.emit("par", par_col[u].data());
+		for (var u in obj_col) socket.volatile.emit("obj", obj_col[u].data());
 		//setTimeout(function(){socket.emit("pong", player_list[socket.id].player.data());}, 200);
 	});
 
@@ -174,10 +181,10 @@ function Player(player_id, team){
 	this.health = CONST.PLAYER_MAX_HEALTH;
 	this.mass = CONST.PLAYER_MASS;
 	
-	//this.shield_fade = 0;
 	this.dying_counter = 0;
 	this.fire_battery = 0;
-	//this.fire_request = false;
+	this.g_object = 1;
+	this.bomb = 1;
 	this.status = 0;
 	
 	this.move_command_state = 0;
@@ -202,11 +209,22 @@ function Player(player_id, team){
 		this.dying_counter = 0;
 		this.fire_battery = 0;
 		this.status = 0;
+		this.g_object = 1;
+		this.bomb = 1;
 	};
 
-	this.data = function() { return {p_id:this.player_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y, angle:this.angle, health:this.health, status:this.status};};
+	this.data = function(){
+	return {p_id:this.player_id,
+		x:this.pos_x,
+		y:this.pos_y,
+		v_x:this.v_x,
+		v_y:this.v_y,
+		angle:this.angle,
+		health:this.health,
+		status:this.status};
+	};
 
-	this.update = function (interval, par_col, par_ids_to_del) {
+	this.update = function (interval, par_col, obj_col, par_ids_to_del) {
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
 		this.v_y -= CONST.PLAYER_FRICTION*this.v_y*interval;
 
@@ -268,6 +286,18 @@ function Player(player_id, team){
 			}
 		}
 		//else this.fire_request = false;
+		if (this.g_object > 0 && this.move_command_state & CONST.COMMAND_G_OBJECT)
+		{
+			this.v_x -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
+			this.v_y -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
+			obj_col[++OBJ_ID] = new G_Object(
+				this.pos_x,// + CONST.PLAYER_RADIUS*Math.cos(this.angle),
+				this.pos_y,// + CONST.PLAYER_RADIUS*Math.sin(this.angle),
+				this.v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle),
+				this.v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle),
+				this.team, OBJ_ID, this.player_id);
+			console.log("player " + this.player_id + " launched G_Object " + OBJ_ID);
+		}
 
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
@@ -304,20 +334,36 @@ function Player(player_id, team){
 }
 
 // Gravity object class
-function G_Object(x, y, v_x, v_y, team)
+function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
 {
 	this.pos_x = x;
 	this.pos_y = y;
 	this.v_x = v_x;
 	this.v_y = v_y;
 	this.radius = CONST.G_OBJECT_MIN_RADIUS;
-	this.team = team;
 	this.mass = CONST.G_OBJECT_MASS;
+
+	this.object_type = CONST.OBJ_G_OBJECT;
+	this.team = team;
+	this.obj_id = obj_id;
+	this.player_id = player_id;
 
 	this.timer = CONST.G_OBJECT_TIME_TO_DET;
 	this.status = 0;
-	
-	this.update = function(par_col, player_list, interval)
+
+	this.data = function(){
+	return {id:this.obj_id,
+		type:this.object_type,
+		x:this.pos_x,
+		y:this.pos_y,
+		v_x:this.v_x,
+		v_y:this.v_y,
+		team:this.team,
+		status:this.status,
+		timer:this.timer};
+	};
+
+	this.update = function(interval, par_col, player_list, obj_ids_to_del)
 	{		
 		if (this.pos_x - this.radius <= 0)
 			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
@@ -337,8 +383,17 @@ function G_Object(x, y, v_x, v_y, team)
 				this.status |= CONST.G_OBJECT_STATUS_DETONATED;
 				this.timer = CONST.G_OBJECT_TIME_TO_LAST;
 				this.radius = CONST.G_OBJECT_MAX_RADIUS;
+				console.log("boom!");
 			}
-			if (this.status & CONST.G_OBJECT_STATUS_DETONATED) ;//add to objects to delete
+			else if (this.status & CONST.G_OBJECT_STATUS_DETONATED)//add to objects to delete
+			{
+			//	this.pos_x = this.pos_y = 100;
+			//	this.v_x = this.v_y = 0.01;
+			//	this.timer = CONST.G_OBJECT_TIME_TO_DET;
+			//	this.status = 0;
+				obj_ids_to_del.push(this.obj_id);
+				console.log("object added to delete array");
+			}
 		}
 
 		if (this.status & CONST.G_OBJECT_STATUS_DETONATED)
