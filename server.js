@@ -62,7 +62,6 @@ var par_ids_to_del = [];
 var OBJ_ID = 0;
 var obj_col = {};
 var obj_ids_to_del = [];
-obj_col[++OBJ_ID] = new G_Object(CONST.MAP_WIDTH/2, CONST.MAP_HEIGHT/2, 0.1, 0.1, 2, OBJ_ID, 0);
 
 var main_timer = new Timer();
 
@@ -266,14 +265,16 @@ function Player(player_id, team){
 		{
 			//this.request_state += CONST.COMMAND_FIRE;
 			//this.fire_request = true;
+			var temp_v_x = this.v_x;
+			var temp_v_y = this.v_y;
 			this.fire_battery = CONST.PLAYER_FIRE_BATTERY;
 			this.v_x -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
 			this.v_y -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
 			par_col[++PAR_ID] = new Particle(
 				this.pos_x,// + CONST.PLAYER_RADIUS*Math.cos(this.angle),
 				this.pos_y,// + CONST.PLAYER_RADIUS*Math.sin(this.angle),
-				this.v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle),
-				this.v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle),
+				temp_v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle),
+				temp_v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle),
 				this.team, PAR_ID, this.player_id);
 				
 			console.log("player " + this.player_id + " fired particle " + PAR_ID);
@@ -288,15 +289,18 @@ function Player(player_id, team){
 		//else this.fire_request = false;
 		if (this.g_object > 0 && this.move_command_state & CONST.COMMAND_G_OBJECT)
 		{
-			this.v_x -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
-			this.v_y -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
+			var temp_v_x = this.v_x;
+			var temp_v_y = this.v_y;
+			this.v_x -= CONST.G_OBJECT_LAUNCH_MASS*CONST.G_OBJECT_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
+			this.v_y -= CONST.G_OBJECT_LAUNCH_MASS*CONST.G_OBJECT_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
 			obj_col[++OBJ_ID] = new G_Object(
 				this.pos_x,// + CONST.PLAYER_RADIUS*Math.cos(this.angle),
 				this.pos_y,// + CONST.PLAYER_RADIUS*Math.sin(this.angle),
-				this.v_x + CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle),
-				this.v_y + CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle),
+				temp_v_x + CONST.G_OBJECT_INITIAL_VELOCITY*Math.cos(this.angle),
+				temp_v_y + CONST.G_OBJECT_INITIAL_VELOCITY*Math.sin(this.angle),
 				this.team, OBJ_ID, this.player_id);
 			console.log("player " + this.player_id + " launched G_Object " + OBJ_ID);
+			this.g_object--;
 		}
 
 		this.pos_x += this.v_x*interval;

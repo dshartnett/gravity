@@ -400,7 +400,10 @@ function G_Object(x, y, v_x, v_y, team)
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
 
+		if (this.status & CONST.G_OBJECT_STATUS_DETONATED) this.radius = CONST.G_OBJECT_MAX_RADIUS;
+
 		this.timer -= interval;
+		if (this.timer < 0) this.timer = 0;
 	}
 	
 	this.draw = function (context, map_pos_x, map_pos_y)
@@ -429,13 +432,24 @@ function G_Object(x, y, v_x, v_y, team)
 			context.translate(x, y);
 
 			var gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1*this.radius);
-			gradient.addColorStop(0, CONST.TEAM_DARK[this.team]);
-			gradient.addColorStop(1, CONST.TEAM_LIGHT[this.team]);
+			if (this.status == 0){
+				gradient.addColorStop(0, CONST.TEAM_LIGHT[this.team]);
+				gradient.addColorStop(1, CONST.TEAM_DARK[this.team]);
+			} else if (this.status & CONST.G_OBJECT_STATUS_DETONATED){
+				gradient.addColorStop(0, "transparent");
+				gradient.addColorStop(1 - this.timer/CONST.G_OBJECT_TIME_TO_LAST, CONST.TEAM_DARK[this.team]);
+				gradient.addColorStop(1, "transparent");
+			}
 			context.beginPath();
-			context.arc(0,0,CONST.PLAYER_SHIELD_RADIUS,0,2*Math.PI,false);
+			context.arc(0,0,this.radius,0,2*Math.PI,false);
 			context.fillStyle = gradient;
 			context.fill();
 			context.stroke();
+			if (this.status == 0){
+				context.fillStyle = "black";
+				context.font = "bold 20px Courier";
+				context.fillText(Math.ceil(this.timer/1000),-6,5);
+			}
 			context.restore();
 		}
 	}
