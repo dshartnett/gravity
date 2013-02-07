@@ -68,6 +68,7 @@ var main_timer = new Timer();
 setInterval(function () {
 	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
 	var server_interval = main_timer.interval;
+	if(100*Math.random() < 1) obj_col[++OBJ_ID] = new G_Object(Math.random()*CONST.MAP_WIDTH, Math.random()*CONST.MAP_HEIGHT, 0, 0, 0, OBJ_ID, 0);
 	for (var u in player_list) player_list[u].player.update(server_interval, par_col, obj_col, par_ids_to_del);
 	for (var u in par_col) par_col[u].update(server_interval);
 	for (var i = 0, len = par_ids_to_del.length; i < len; i++) {

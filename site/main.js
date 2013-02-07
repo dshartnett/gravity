@@ -475,6 +475,7 @@ function Game()
 	
 	var draw_timer = new Timer();
 	var update_timer = new Timer();
+	var ping_timer = new Timer();
 	var interval_id;
 	
 	var debug = true;
@@ -576,7 +577,8 @@ function Game()
 						socket.emit("request_player_list", player_id);
 						return;
 					}
-					if (debug) console.log(data);
+					//if (debug) console.log(data);
+					if (debug) console.log(ping_timer.interval);
 					var diff_x = data.x - player_col[data.p_id].pos_x;
 					var diff_y = data.y - player_col[data.p_id].pos_y;
 					var diff_a = data.angle - player_col[data.p_id].angle;
