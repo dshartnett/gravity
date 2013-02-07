@@ -184,8 +184,6 @@ function Player(player_id, team){
 	
 	this.dying_counter = 0;
 	this.fire_battery = 0;
-	this.g_object = 1;
-	this.bomb = 1;
 	this.status = 0;
 	
 	this.move_command_state = 0;
@@ -210,8 +208,6 @@ function Player(player_id, team){
 		this.dying_counter = 0;
 		this.fire_battery = 0;
 		this.status = 0;
-		this.g_object = 1;
-		this.bomb = 1;
 	};
 
 	this.data = function(){
@@ -289,7 +285,7 @@ function Player(player_id, team){
 			}
 		}
 		//else this.fire_request = false;
-		if (this.g_object > 0 && this.move_command_state & CONST.COMMAND_G_OBJECT)
+		if (this.status & CONST.PLAYER_STATUS_HAS_G_OBJECT && this.move_command_state & CONST.COMMAND_G_OBJECT)
 		{
 			var temp_v_x = this.v_x;
 			var temp_v_y = this.v_y;
@@ -302,7 +298,7 @@ function Player(player_id, team){
 				temp_v_y + CONST.G_OBJECT_INITIAL_VELOCITY*Math.sin(this.angle),
 				this.team, OBJ_ID, this.player_id);
 			console.log("player " + this.player_id + " launched G_Object " + OBJ_ID);
-			this.g_object--;
+			this.status -= CONST.PLAYER_STATUS_HAS_G_OBJECT;
 		}
 
 		this.pos_x += this.v_x*interval;
@@ -340,9 +336,9 @@ function Player(player_id, team){
 						case CONST.POWER_UP_INVINCIBLE:
 						break;
 						case CONST.POWER_UP_G_OBJECT:
-							if (this.g_object < 1)
+							if (!(this.status & CONST.PLAYER_STATUS_HAS_G_OBJECT))
 							{
-								this.g_object = obj_col[u].power_up();
+								this.status += CONST.PLAYER_STATUS_HAS_G_OBJECT*obj_col[u].power_up();
 							}
 						break;
 						case CONST.POWER_UP_BOMB:

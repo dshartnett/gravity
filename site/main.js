@@ -132,6 +132,7 @@ function Player(team){
 	this.fire_battery = 0;
 	
 	this.move_command_state = 0;
+	this.status = 0;
 	
 	//this.request_state = 0;
 	
@@ -173,6 +174,11 @@ function Player(team){
 			this.fire_battery = CONST.PLAYER_FIRE_BATTERY;
 			this.v_x -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
 			this.v_y -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
+		}
+		if (this.status & CONST.PLAYER_STATUS_HAS_G_OBJECT && this.move_command_state & CONST.COMMAND_G_OBJECT)
+		{
+			this.v_x -= CONST.G_OBJECT_LAUNCH_MASS*CONST.G_OBJECT_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
+			this.v_y -= CONST.G_OBJECT_LAUNCH_MASS*CONST.G_OBJECT_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;	
 		}
 
 		this.pos_x += this.v_x*interval;
@@ -654,6 +660,7 @@ function Game()
 					player_col[data.p_id].v_x = data.v_x;
 					player_col[data.p_id].v_y = data.v_y;
 					player_col[data.p_id].health = data.health;
+					player_col[data.p_id].status = data.status;
 					player_col[data.p_id].server_set = true;
 					//socket.emit("ping", player_col[player_id].move_command_state);
 				});
