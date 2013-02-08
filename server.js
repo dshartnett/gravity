@@ -81,7 +81,7 @@ setInterval(function () {
 	}
 	power_up_count[CONST.POWER_UP_CLOAK] = power_up_count[CONST.POWER_UP_INVINCIBLE] = power_up_count[CONST.POWER_UP_G_OBJECT] = power_up_count[CONST.POWER_UP_BOMB] = 0;
 	for (var u in obj_col){
-		obj_col[u].update(server_interval, par_col, player_list, obj_ids_to_del);
+		obj_col[u].update(server_interval, par_col, obj_col, player_list, obj_ids_to_del);
 		if(obj_col[u].object_type == CONST.OBJ_POWER_UP) power_up_count[obj_col[u].power_up_type]++;
 	}
 	//console.log(power_up_count);
@@ -445,7 +445,7 @@ function Power_Up_Object(obj_id, x, y, v_x, v_y, power_up_type)
 			v_y:this.v_y};
 	};
 	
-	this.update = function(interval, par_col, player_list, obj_ids_to_del)
+	this.update = function(interval, par_col, obj_col, player_list, obj_ids_to_del)
 	{		
 		if (this.pos_x - this.radius <= 0)
 			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
@@ -493,7 +493,7 @@ function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
 			timer:this.timer};
 	};
 
-	this.update = function(interval, par_col, player_list, obj_ids_to_del)
+	this.update = function(interval, par_col, obj_col, player_list, obj_ids_to_del)
 	{		
 		if (this.pos_x - this.radius <= 0)
 			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
@@ -547,7 +547,21 @@ function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
 						par_col[i].v_y -= CONST.G_OBJECT_FRICTION*par_col[i].v_y*interval;
 					}
 			}
-			
+			for (var i in obj_col)
+			{
+				if (obj_col[i].object_type == CONST.OBJ_BOMB)
+				{
+					disX = this.pos_x - obj_col[i].pos_x;
+					disY = this.pos_y - obj_col[i].pos_y;
+					distance2 = disX*disX + disY*disY;
+					if (distance2 > this.radius*this.radius){
+						distance = Math.sqrt(distance2);
+						force = this.mass/distance2;
+						obj_col[i].v_x += interval*disX*force/distance;
+						obj_col[i].v_y += interval*disY*force/distance;
+					}
+				}
+			}
 			for (var i in player_list){
 				if (this.team != player_list[i].player.team){
 					disX = this.pos_x - player_list[i].player.pos_x;
@@ -595,7 +609,7 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 			timer:this.timer};
 	};
 
-	this.update = function(interval, par_col, player_list, obj_ids_to_del)
+	this.update = function(interval, par_col, obj_col, player_list, obj_ids_to_del)
 	{		
 		if (this.pos_x - this.radius <= 0)
 			{this.v_x = -CONST.BOMB_WALL_LOSS*this.v_x; this.pos_x = this.radius;}

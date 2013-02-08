@@ -260,7 +260,7 @@ function Player(team){
 			context.arc(0,0,CONST.PLAYER_SHIELD_RADIUS,0,2*Math.PI,false);
 			gradient = context.createRadialGradient(0, 0, 0, 0, 0, this.radius*2);
 			gradient.addColorStop(0, "transparent");
-			gradient.addColorStop(Math.random(), "white");
+			gradient.addColorStop(0.4+0.1*Math.random(), "white");
 			gradient.addColorStop(1, "transparent");
 			context.fillStyle = gradient;
 			context.fill();
@@ -372,7 +372,7 @@ function Player(team){
 				context.arc(0,0,CONST.PLAYER_SHIELD_RADIUS,0,2*Math.PI,false);
 				gradient = context.createRadialGradient(0, 0, 0, 0, 0, this.radius*2);
 				gradient.addColorStop(0, "transparent");
-				gradient.addColorStop(Math.random(), "white");
+				gradient.addColorStop(0.4+0.1*Math.random(), "white");
 				gradient.addColorStop(1, "transparent");
 				context.fillStyle = gradient;
 				context.fill();
