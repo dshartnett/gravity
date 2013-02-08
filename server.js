@@ -63,13 +63,15 @@ var OBJ_ID = 0;
 var obj_col = {};
 var obj_ids_to_del = [];
 
+var power_up_count = {};
+power_up_count[CONST.POWER_UP_CLOAK] = power_up_count[CONST.POWER_UP_INVINCIBLE] = power_up_count[CONST.POWER_UP_G_OBJECT] = power_up_count[CONST.POWER_UP_BOMB] = 0;
+
 var main_timer = new Timer();
 
 setInterval(function () {
 	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
 	var server_interval = main_timer.interval;
 //	if(100*Math.random() < 1) obj_col[++OBJ_ID] = new G_Object(Math.random()*CONST.MAP_WIDTH, Math.random()*CONST.MAP_HEIGHT, 0, 0, 0, OBJ_ID, 0);
-	if(100*Math.random() < 1) obj_col[++OBJ_ID] = new Power_Up_Object(OBJ_ID, Math.random()*CONST.MAP_WIDTH, Math.random()*CONST.MAP_HEIGHT, Math.random()*0.1, Math.random()*0.1, CONST.POWER_UP_G_OBJECT);
 	for (var u in player_list) player_list[u].player.update(server_interval, par_col, obj_col, par_ids_to_del);
 	for (var u in par_col) par_col[u].update(server_interval);
 	for (var i = 0, len = par_ids_to_del.length; i < len; i++) {
@@ -77,7 +79,18 @@ setInterval(function () {
 		io.sockets.emit("par_delete", par_ids_to_del[0]);
 		delete par_col[par_ids_to_del.shift()];
 	}
-	for (var u in obj_col) obj_col[u].update(server_interval, par_col, player_list, obj_ids_to_del);
+	power_up_count[CONST.POWER_UP_CLOAK] = power_up_count[CONST.POWER_UP_INVINCIBLE] = power_up_count[CONST.POWER_UP_G_OBJECT] = power_up_count[CONST.POWER_UP_BOMB] = 0;
+	for (var u in obj_col){
+		obj_col[u].update(server_interval, par_col, player_list, obj_ids_to_del);
+		if(obj_col[u].object_type == CONST.OBJ_POWER_UP) power_up_count[obj_col[u].power_up_type]++;
+	}
+	//console.log(power_up_count);
+	for (var u in power_up_count)
+	{
+		//console.log(u);
+		if (power_up_count[u] < 2)
+			obj_col[++OBJ_ID] = new Power_Up_Object(OBJ_ID, Math.random()*CONST.MAP_WIDTH, Math.random()*CONST.MAP_HEIGHT, (Math.random()-0.5)*0.1, (Math.random()-0.5)*0.1, Number(u));
+	}
 	for (var i = 0, len = obj_ids_to_del.length; i < len; i++) {
 		console.log("deleting object " + obj_ids_to_del[0] + " and emitting delete");
 		io.sockets.emit("obj_delete", obj_ids_to_del[0]);
@@ -119,7 +132,7 @@ io.sockets.on('connection', function (socket) {
 		player_list[socket.id].start_interval = Date.now();
 
 		//socket.volatile.emit("pong", player_list[socket.id].player.data());
-		for (var u in player_list) socket.volatile.emit("pong", player_list[u].player.data());
+		for (var u in player_list) socket.volatile.emit("pong", player_list[u].player.data(player_list[socket.id].player.player_id));
 		for (var u in par_col) socket.volatile.emit("par", par_col[u].data());
 		for (var u in obj_col) socket.volatile.emit("obj", obj_col[u].data());
 		//setTimeout(function(){socket.emit("pong", player_list[socket.id].player.data());}, 200);
@@ -182,7 +195,9 @@ function Player(player_id, team){
 	this.health = CONST.PLAYER_MAX_HEALTH;
 	this.mass = CONST.PLAYER_MASS;
 	
-	this.dying_counter = 0;
+	this.dying_timer = 0;
+	this.cloak_timer = 0;
+	this.invincible_timer = 0;
 	this.fire_battery = 0;
 	this.status = 0;
 	
@@ -205,20 +220,16 @@ function Player(player_id, team){
 		this.angle = Math.random()*2*Math.PI;
 		this.pos_x = (0.1 + Math.random()*0.8)*CONST.MAP_WIDTH;
 		this.pos_y = (0.1 + Math.random()*0.8)*CONST.MAP_HEIGHT;
-		this.dying_counter = 0;
+		this.dying_timer = 0;
 		this.fire_battery = 0;
 		this.status = 0;
 	};
 
-	this.data = function(){
-	return {p_id:this.player_id,
-		x:this.pos_x,
-		y:this.pos_y,
-		v_x:this.v_x,
-		v_y:this.v_y,
-		angle:this.angle,
-		health:this.health,
-		status:this.status};
+	this.data = function(other_id){
+		if (this.status & CONST.PLAYER_STATUS_CLOAKED && this.player_id != other_id)
+			return {p_id:this.player_id, x:0, y:0, v_x:0, v_y:0, angle:0, health:this.health, status:this.status};
+		else 
+			return {p_id:this.player_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y, angle:this.angle, health:this.health, status:this.status};
 	};
 
 	this.update = function (interval, par_col, obj_col, par_ids_to_del) {
@@ -227,11 +238,17 @@ function Player(player_id, team){
 
 		if (this.status & CONST.PLAYER_STATUS_DEAD)
 		{
-			this.dying_counter -= interval;
+			this.dying_timer -= interval;
 			this.move_command_state = 0;
 		}
+		if (this.dying_timer < 0) this.spawn();
 		
-		if (this.dying_counter < 0) this.spawn();
+		
+		if (this.status & CONST.PLAYER_STATUS_CLOAKED) this.cloak_timer -= interval;
+		if (this.cloak_timer < 0) this.status &= ~CONST.PLAYER_STATUS_CLOAKED;
+		
+		if (this.status & CONST.PLAYER_STATUS_INVINCIBLE) this.invincible_timer -= interval;
+		if (this.invincible_timer < 0) this.status &= ~CONST.PLAYER_STATUS_INVINCIBLE;
 		
 		//if (this.shield_fade > 0) this.shield_fade -= interval;
 		if (this.fire_battery > 0) this.fire_battery -= interval;
@@ -300,6 +317,21 @@ function Player(player_id, team){
 			console.log("player " + this.player_id + " launched G_Object " + OBJ_ID);
 			this.status -= CONST.PLAYER_STATUS_HAS_G_OBJECT;
 		}
+		if (this.status & CONST.PLAYER_STATUS_HAS_BOMB && this.move_command_state & CONST.COMMAND_BOMB)
+		{
+			var temp_v_x = this.v_x;
+			var temp_v_y = this.v_y;
+			this.v_x -= CONST.BOMB_LAUNCH_MASS*CONST.BOMB_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
+			this.v_y -= CONST.BOMB_LAUNCH_MASS*CONST.BOMB_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
+			obj_col[++OBJ_ID] = new Bomb(
+				this.pos_x,// + CONST.PLAYER_RADIUS*Math.cos(this.angle),
+				this.pos_y,// + CONST.PLAYER_RADIUS*Math.sin(this.angle),
+				temp_v_x + CONST.G_OBJECT_INITIAL_VELOCITY*Math.cos(this.angle),
+				temp_v_y + CONST.G_OBJECT_INITIAL_VELOCITY*Math.sin(this.angle),
+				this.team, OBJ_ID, this.player_id);
+			console.log("player " + this.player_id + " launched bomb " + OBJ_ID);
+			this.status -= CONST.PLAYER_STATUS_HAS_BOMB;
+		}
 
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
@@ -309,6 +341,8 @@ function Player(player_id, team){
 		
 		if (this.health < CONST.PLAYER_MAX_HEALTH && !(this.status & CONST.PLAYER_STATUS_DEAD)) this.health += CONST.PLAYER_HEALTH_REGEN*interval;
 		if (this.health > CONST.PLAYER_MAX_HEALTH) this.health = CONST.PLAYER_MAX_HEALTH;
+		
+		var invincible_health_save = this.health;
 		
 		for (var i in par_col)
 		{
@@ -336,8 +370,18 @@ function Player(player_id, team){
 					switch(obj_col[u].power_up_type)
 					{
 						case CONST.POWER_UP_CLOAK:
+							if (!(this.status & CONST.PLAYER_STATUS_CLOAKED))
+							{
+								this.status += CONST.PLAYER_STATUS_CLOAKED*obj_col[u].power_up();
+								this.cloak_timer = CONST.PLAYER_CLOAK_TIMER_MAX;
+							}
 						break;
 						case CONST.POWER_UP_INVINCIBLE:
+							if (!(this.status & CONST.PLAYER_STATUS_INVINCIBLE))
+							{
+								this.status += CONST.PLAYER_STATUS_INVINCIBLE*obj_col[u].power_up();
+								this.invincible_timer = CONST.PLAYER_INVINCIBLE_TIMER_MAX;
+							}
 						break;
 						case CONST.POWER_UP_G_OBJECT:
 							if (!(this.status & CONST.PLAYER_STATUS_HAS_G_OBJECT))
@@ -346,6 +390,10 @@ function Player(player_id, team){
 							}
 						break;
 						case CONST.POWER_UP_BOMB:
+							if (!(this.status & CONST.PLAYER_STATUS_HAS_BOMB))
+							{
+								this.status += CONST.PLAYER_STATUS_HAS_BOMB*obj_col[u].power_up();
+							}
 						break;
 					}
 				}
@@ -361,7 +409,8 @@ function Player(player_id, team){
 		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
 			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.health -= -CONST.WALL_DAMAGE_MULTIPLIER*this.v_y + CONST.WALL_DAMAGE_MINIMUM;}
 
-		if (this.health < 0 && !(this.status & CONST.PLAYER_STATUS_DEAD)) {this.status |= CONST.PLAYER_STATUS_DEAD; this.dying_counter = CONST.PLAYER_DEAD_COUNTER_MAX;}
+		if (this.status & CONST.PLAYER_STATUS_INVINCIBLE) this.health = invincible_health_save;
+		if (this.health < 0 && !(this.status & CONST.PLAYER_STATUS_DEAD)) {this.status |= CONST.PLAYER_STATUS_DEAD; this.dying_timer = CONST.PLAYER_DEAD_COUNTER_MAX;}
 	};
 	return this;
 }
@@ -516,4 +565,101 @@ function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
 	return this;
 }
 
+function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
+{
+	this.pos_x = x;
+	this.pos_y = y;
+	this.v_x = v_x;
+	this.v_y = v_y;
+	this.radius = CONST.BOMB_MIN_RADIUS;
+	this.mass = CONST.BOMB_MASS;
+
+	this.object_type = CONST.OBJ_BOMB;
+	this.team = team;
+	this.obj_id = obj_id;
+	this.player_id = player_id;
+
+	this.timer = CONST.BOMB_TIME_TO_DET;
+	this.status = 0;
+
+	this.data = function(){
+		return {id:this.obj_id,
+			type:this.object_type,
+			x:this.pos_x,
+			y:this.pos_y,
+			v_x:this.v_x,
+			v_y:this.v_y,
+			team:this.team,
+			status:this.status,
+			timer:this.timer};
+	};
+
+	this.update = function(interval, par_col, player_list, obj_ids_to_del)
+	{		
+		if (this.pos_x - this.radius <= 0)
+			{this.v_x = -CONST.BOMB_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
+		else if (this.pos_x + this.radius >= CONST.MAP_WIDTH)
+			{this.v_x = -CONST.BOMB_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius;}
+		if (this.pos_y - this.radius <= 0)
+			{this.v_y = -CONST.BOMB_WALL_LOSS*this.v_y; this.pos_y = this.radius;}
+		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
+			{this.v_y = -CONST.BOMB_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius;}
+			
+		this.pos_x += this.v_x*interval;
+		this.pos_y += this.v_y*interval;
+
+		this.timer -= interval;
+		if (this.timer < 0){
+			if (this.status == 0){
+				this.status |= CONST.BOMB_STATUS_DETONATED;
+				this.timer = CONST.BOMB_TIME_TO_LAST;
+				//this.radius = CONST.BOMB_BLAST_RADIUS;
+				console.log("boom!");
+			}
+			else if (this.status & CONST.BOMB_STATUS_DETONATED)//add to objects to delete
+			{
+				obj_ids_to_del.push(this.obj_id);
+				console.log("object added to delete array");
+			}
+		}
+
+		if (this.status & CONST.BOMB_STATUS_DETONATED)
+		{
+			this.v_x = this.v_y = 0;
+			var disX, disY, distance2, distance, force;
+			for (var i in par_col)
+			{
+					disX = this.pos_x - par_col[i].pos_x;
+					disY = this.pos_y - par_col[i].pos_y;
+					distance2 = disX*disX + disY*disY;
+					if (distance2 > this.radius*this.radius)
+					{
+						distance = Math.sqrt(distance2);
+						force = this.mass/distance2;
+						par_col[i].v_x += interval*disX*force/distance;
+						par_col[i].v_y += interval*disY*force/distance;
+					}
+					else
+					{
+						par_col[i].v_x -= CONST.G_OBJECT_FRICTION*par_col[i].v_x*interval;
+						par_col[i].v_y -= CONST.G_OBJECT_FRICTION*par_col[i].v_y*interval;
+					}
+			}
+			for (var i in player_list){
+				disX = this.pos_x - player_list[i].player.pos_x;
+				disY = this.pos_y - player_list[i].player.pos_y;
+				distance2 = disX*disX + disY*disY;
+				if (distance2 < CONST.BOMB_MIN_RADIUS) distance2 = CONST.BOMB_MIN_RADIUS; // distance will be sqrt(CONST.BOMB_MIN_RADIUS) - lazy, i know
+				if (distance2 < CONST.BOMB_BLAST_RADIUS*CONST.BOMB_BLAST_RADIUS){
+					distance = Math.sqrt(distance2);
+					force = this.mass/distance2;
+					player_list[i].player.v_x -= interval*disX*force/distance;
+					player_list[i].player.v_y -= interval*disY*force/distance;
+					if (!(player_list[i].player.status & CONST.PLAYER_STATUS_INVINCIBLE) && this.team != player_list[i].player.team) player_list[i].player.health -= CONST.BOMB_DAMAGE_FACTOR*interval/distance;
+				}
+			}
+		}
+	};
+	return this;
+}
 })();

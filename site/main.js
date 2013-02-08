@@ -134,11 +134,17 @@ function Player(team){
 	this.move_command_state = 0;
 	this.status = 0;
 	
+	var has_power_up_array = [0,0,0,0];
 	//this.request_state = 0;
 	
 	this.server_set = true;
 	
 	this.update = function (interval) {
+		has_power_up_array[CONST.POWER_UP_CLOAK] = this.status & CONST.PLAYER_STATUS_CLOAKED;
+		has_power_up_array[CONST.POWER_UP_INVINCIBLE] = this.status & CONST.PLAYER_STATUS_INVINCIBLE;
+		has_power_up_array[CONST.POWER_UP_G_OBJECT] = this.status & CONST.PLAYER_STATUS_HAS_G_OBJECT;
+		has_power_up_array[CONST.POWER_UP_BOMB] = this.status & CONST.PLAYER_STATUS_HAS_BOMB;
+
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
 		this.v_y -= CONST.PLAYER_FRICTION*this.v_y*interval;
 
@@ -236,6 +242,31 @@ function Player(team){
 		context.strokeStyle = "gray";
 		context.stroke();
 
+		if (has_power_up_array[CONST.POWER_UP_CLOAK])
+		{
+			context.beginPath();
+			context.arc(0,0,CONST.PLAYER_SHIELD_RADIUS,0,2*Math.PI,false);
+			gradient = context.createRadialGradient(0, 0, 0, 0, 0, this.radius*2);
+			gradient.addColorStop(0, "transparent");
+			gradient.addColorStop(1, "violet");
+			context.fillStyle = gradient;
+			context.fill();
+			context.stroke();
+		}
+		
+		if (has_power_up_array[CONST.POWER_UP_INVINCIBLE])
+		{
+			context.beginPath();
+			context.arc(0,0,CONST.PLAYER_SHIELD_RADIUS,0,2*Math.PI,false);
+			gradient = context.createRadialGradient(0, 0, 0, 0, 0, this.radius*2);
+			gradient.addColorStop(0, "transparent");
+			gradient.addColorStop(Math.random(), "white");
+			gradient.addColorStop(1, "transparent");
+			context.fillStyle = gradient;
+			context.fill();
+			context.stroke();
+		}
+		
 		if (this.shield_fade > 0)
 		{
 			context.beginPath();
@@ -246,8 +277,6 @@ function Player(team){
 			gradient.addColorStop(1, "transparent");
 			context.fillStyle = gradient;
 			context.fill();
-//			context.lineWidth = 0;
-//			context.strokeStyle = "white";
 			context.stroke();
 		}
 		context.restore();
@@ -271,21 +300,31 @@ function Player(team){
 			context.restore();
 		}}
 		
-		if (this.status & CONST.PLAYER_STATUS_HAS_G_OBJECT)
+		for (var u in has_power_up_array)
 		{
-			context.save();
-			context.translate(CONST.HAS_G_LOCATION_X, CONST.HAS_G_LOCATION_Y);
-			gradient = context.createRadialGradient(CONST.INFO_BOX_SIDE/2, CONST.INFO_BOX_SIDE/2, 0, CONST.INFO_BOX_SIDE/2, CONST.INFO_BOX_SIDE/2, CONST.INFO_BOX_SIDE);
-			gradient.addColorStop(0, CONST.TEAM_LIGHT[CONST.TEAM0]);
-			gradient.addColorStop(1, CONST.TEAM_DARK[CONST.TEAM0]);
-			context.fillStyle = gradient;
-			context.fillRect(0, 0, CONST.INFO_BOX_SIDE, CONST.INFO_BOX_SIDE);
-			context.restore();
+			if (has_power_up_array[u])
+			{
+				context.save();
+				context.translate(CONST.HAS_LOC_X[u], CONST.HAS_LOC_Y[u]);
+				gradient = context.createRadialGradient(CONST.INFO_BOX_SIDE/2, CONST.INFO_BOX_SIDE/2, 0, CONST.INFO_BOX_SIDE/2, CONST.INFO_BOX_SIDE/2, CONST.INFO_BOX_SIDE);
+				gradient.addColorStop(0, CONST.TEAM_LIGHT[CONST.TEAM0]);
+				gradient.addColorStop(1, CONST.TEAM_DARK[CONST.TEAM0]);
+				context.fillStyle = gradient;
+				context.lineWidth = 1;
+				context.strokeStyle = CONST.TEAM_DARK[CONST.TEAM0];
+				context.fillRect(0, 0, CONST.INFO_BOX_SIDE, CONST.INFO_BOX_SIDE);
+				
+				context.fillStyle = CONST.POWER_UP_TEXT_COLOR;
+				context.font = CONST.POWER_UP_FONT;
+				context.fillText(CONST.POWER_UP_CHAR[u],3,CONST.INFO_BOX_SIDE-5);
+				
+				context.restore();
+			}
 		}
-
 	};
 	
 	this.net_draw = function(context, map_pos_x, map_pos_y){
+		if (this.status & CONST.PLAYER_STATUS_CLOAKED) return;
 		var x = this.pos_x - map_pos_x;
 		var y = this.pos_y - map_pos_y;
 		if (x >= (-this.radius) && x <= (CONST.CANVAS_WIDTH + this.radius) && y >= (-this.radius) && y <= (CONST.CANVAS_HEIGHT + this.radius))
@@ -326,7 +365,19 @@ function Player(team){
 //				context.strokeStyle = "white";
 				context.stroke();
 			}
-		
+				
+			if (has_power_up_array[CONST.POWER_UP_INVINCIBLE])
+			{
+				context.beginPath();
+				context.arc(0,0,CONST.PLAYER_SHIELD_RADIUS,0,2*Math.PI,false);
+				gradient = context.createRadialGradient(0, 0, 0, 0, 0, this.radius*2);
+				gradient.addColorStop(0, "transparent");
+				gradient.addColorStop(Math.random(), "white");
+				gradient.addColorStop(1, "transparent");
+				context.fillStyle = gradient;
+				context.fill();
+				context.stroke();
+			}
 			context.restore();
 		}
 	};
@@ -439,6 +490,79 @@ function G_Object(x, y, v_x, v_y, team)
 	return this;
 };
 
+function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
+{
+	this.pos_x = x;
+	this.pos_y = y;
+	this.v_x = v_x;
+	this.v_y = v_y;
+	this.radius = CONST.BOMB_MIN_RADIUS;
+	this.mass = CONST.BOMB_MASS;
+
+	this.object_type = CONST.OBJ_BOMB;
+	this.team = team;
+	this.obj_id = obj_id;
+	this.player_id = player_id;
+
+	this.timer = CONST.BOMB_TIME_TO_DET;
+	this.status = 0;
+
+	this.update = function(interval, par_col, player_list, obj_ids_to_del)
+	{		
+		if (this.pos_x - CONST.BOMB_MIN_RADIUS <= 0)
+			{this.v_x = -CONST.BOMB_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
+		else if (this.pos_x + CONST.BOMB_MIN_RADIUS >= CONST.MAP_WIDTH)
+			{this.v_x = -CONST.BOMB_WALL_LOSS*this.v_x; this.pos_x = CONST.MAP_WIDTH-this.radius;}
+		if (this.pos_y - CONST.BOMB_MIN_RADIUS <= 0)
+			{this.v_y = -CONST.BOMB_WALL_LOSS*this.v_y; this.pos_y = this.radius;}
+		else if (this.pos_y + CONST.BOMB_MIN_RADIUS >= CONST.MAP_HEIGHT)
+			{this.v_y = -CONST.BOMB_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius;}
+			
+		this.pos_x += this.v_x*interval;
+		this.pos_y += this.v_y*interval;
+		if (this.status & CONST.BOMB_STATUS_DETONATED) this.radius = CONST.BOMB_BLAST_RADIUS;
+		
+		this.timer -= interval;
+		if (this.timer < 0) this.timer = 0;
+	};
+	
+	this.draw = function (context, map_pos_x, map_pos_y)
+	{
+		var x = this.pos_x - map_pos_x;
+		var y = this.pos_y - map_pos_y;
+
+		if (x >= (-this.radius) && x <= (CONST.CANVAS_WIDTH + this.radius) && y >= (-this.radius) && y <= (CONST.CANVAS_HEIGHT + this.radius))
+		{
+			context.save();
+			context.translate(x, y);
+
+			var gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1*this.radius);
+			if (this.status == 0){
+				gradient.addColorStop(0, CONST.TEAM_LIGHT[this.team]);
+				gradient.addColorStop(1, CONST.TEAM_DARK[this.team]);
+			} else if (this.status & CONST.BOMB_STATUS_DETONATED){
+				gradient.addColorStop(0, "transparent");
+				gradient.addColorStop(1 - this.timer/CONST.BOMB_TIME_TO_LAST, CONST.TEAM_LIGHT[this.team]);
+				gradient.addColorStop(1, "transparent");
+			}
+			context.beginPath();
+			context.arc(0,0,this.radius,0,2*Math.PI,false);
+			context.fillStyle = gradient;
+			context.fill();
+			context.lineWidth = 0;
+			context.strokeStyle = "transparent";
+			context.stroke();
+			if (this.status == 0){
+				context.fillStyle = CONST.POWER_UP_TEXT_COLOR;
+				context.font = CONST.POWER_UP_FONT;
+				context.fillText(Math.ceil(this.timer/1000),-6,5);
+			}
+			context.restore();
+		}
+	}
+	
+	return this;
+}
 
 function Power_Up_Object(x, y, v_x, v_y, power_up_type)
 {
@@ -449,7 +573,7 @@ function Power_Up_Object(x, y, v_x, v_y, power_up_type)
 	this.radius = CONST.POWER_UP_RADIUS;
 	this.type = CONST.OBJ_POWER_UP;
 	this.power_up_type = power_up_type;
-	this.text = "G";
+	this.text = CONST.POWER_UP_CHAR[this.power_up_type];
 	
 	this.update = function(interval)
 	{		
@@ -486,8 +610,8 @@ function Power_Up_Object(x, y, v_x, v_y, power_up_type)
 			context.fill();
 			context.stroke();
 			
-			context.fillStyle = "black";
-			context.font = "bold 20px Courier";
+			context.fillStyle = CONST.POWER_UP_TEXT_COLOR;
+			context.font = CONST.POWER_UP_FONT;
 			context.fillText(this.text,-6,5);
 		
 			context.restore();
@@ -582,22 +706,29 @@ function Game()
 		socket.on("obj", function(data){
 			if (typeof obj_col[data.id] === 'undefined'){
 				switch (data.type){
+					case CONST.OBJ_POWER_UP:
+						obj_col[data.id] = new Power_Up_Object(data.x, data.y, data.v_x, data.v_y, data.p_t);
+					break;
 					case CONST.OBJ_G_OBJECT:
 						obj_col[data.id] = new G_Object(data.x, data.y, data.v_x, data.v_y, data.team);
 					break;
-					case CONST.OBJ_POWER_UP:
-						obj_col[data.id] = new Power_Up_Object(data.x, data.y, data.v_x, data.v_y, data.p_t);
+					case CONST.OBJ_BOMB:
+						obj_col[data.id] = new Bomb(data.x, data.y, data.v_x, data.v_y, data.team);
 					break;
 				}
 			}
 			
 			switch (data.type){
+				case CONST.OBJ_POWER_UP:
+				//	obj_col[data.id] = new Power_Up_Object(data.x, data.y, data.v_x, data.v_y, data.type
+				break;
 				case CONST.OBJ_G_OBJECT:
 					obj_col[data.id].status = data.status;
 					obj_col[data.id].timer = data.timer;
 				break;
-				case CONST.OBJ_POWER_UP:
-				//	obj_col[data.id] = new Power_Up_Object(data.x, data.y, data.v_x, data.v_y, data.type
+				case CONST.OBJ_BOMB:
+					obj_col[data.id].status = data.status;
+					obj_col[data.id].timer = data.timer;
 				break;
 			}
 			
@@ -676,6 +807,7 @@ function Game()
 		if (key_down[82]) player_col[player_id].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
 		if (key_down[83]) player_col[player_id].move_command_state += CONST.COMMAND_FIRE;
 		if (key_down[71]) player_col[player_id].move_command_state += CONST.COMMAND_G_OBJECT;
+		if (key_down[66]) player_col[player_id].move_command_state += CONST.COMMAND_BOMB;
 		
 		var update_interval = update_timer.interval;
 
