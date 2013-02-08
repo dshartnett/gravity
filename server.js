@@ -547,6 +547,7 @@ function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
 						par_col[i].v_y -= CONST.G_OBJECT_FRICTION*par_col[i].v_y*interval;
 					}
 			}
+			
 			for (var i in player_list){
 				if (this.team != player_list[i].player.team){
 					disX = this.pos_x - player_list[i].player.pos_x;
