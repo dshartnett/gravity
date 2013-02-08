@@ -560,6 +560,11 @@ function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
 						obj_col[i].v_x += interval*disX*force/distance;
 						obj_col[i].v_y += interval*disY*force/distance;
 					}
+					else
+					{
+						obj_col[i].v_x -= CONST.G_OBJECT_FRICTION*obj_col[i].v_x*interval;
+						obj_col[i].v_y -= CONST.G_OBJECT_FRICTION*obj_col[i].v_y*interval;
+					}
 				}
 			}
 			for (var i in player_list){
