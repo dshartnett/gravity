@@ -92,7 +92,7 @@ setInterval(function () {
 	for (var u in power_up_count)
 	{
 		//console.log(u);
-		if (power_up_count[u] < 2)
+		if (power_up_count[u] < 1)
 			obj_col[++OBJ_ID] = new Power_Up_Object(OBJ_ID, Math.random()*CONST.MAP_WIDTH, Math.random()*CONST.MAP_HEIGHT, (Math.random()-0.5)*0.1, (Math.random()-0.5)*0.1, Number(u));
 	}
 	for (var i = 0, len = obj_ids_to_del.length; i < len; i++) {
@@ -191,7 +191,7 @@ function Player(player_id, team){
 	
 	this.pos_x = (0.1 + Math.random()*0.8)*CONST.MAP_WIDTH;
 	this.pos_y = (0.1 + Math.random()*0.8)*CONST.MAP_HEIGHT;
-	this.angle = 0;
+	this.angle = Math.random()*2*Math.PI;
 	this.v_x = 0;
 	this.v_y = 0;
 	
@@ -246,6 +246,7 @@ function Player(player_id, team){
 		{
 			this.dying_timer -= interval;
 			this.move_command_state = 0;
+			this.angle -= CONST.PLAYER_ROTATE_SPEED*interval;
 		}
 		if (this.dying_timer < 0) this.spawn();
 		

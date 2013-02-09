@@ -56,8 +56,6 @@ Timer.prototype = {
 
 function Background ()
 {
-	this.background_ready = false;
-
 	var background_canvas = $("<canvas id='background_canvas' width='" + CONST.MAP_WIDTH + "' height='" + CONST.MAP_HEIGHT + "'></canvas>");
 	var background_context = background_canvas.get(0).getContext('2d');
 
@@ -82,17 +80,13 @@ function Background ()
 			sf_0.push(star);
 			background_context.fillRect(sf_0[i].x, sf_0[i].y, sf_0[i].star_size, sf_0[i].star_size);
 		}
-		
+		/*
 		for (var i = 0; i < CONST.BACKGROUND_PLANETS0; i++){
 			var planet = {x:Math.random()*CONST.MAP_WIDTH, y: Math.random()*CONST.MAP_HEIGHT, planet_radius:CONST.BACKGROUND_PLANET_SIZE_MIN + CONST.BACKGROUND_PLANET_SIZE_RANGE*Math.random()};
 			pf_0.push(planet);
 		}
-		
-		console.log("Loading background to memory...");
-		this.background_ready = true;
+		*/
 	}
-
-	this.ready = function () {console.log("Background loaded."); this.background_ready = true;}
 
 	this.draw = function (context, pos_x, pos_y) {
 		var gradient = context.createLinearGradient(-pos_x,-pos_y,CONST.MAP_WIDTH-pos_x,CONST.MAP_HEIGHT-pos_y);
@@ -150,10 +144,16 @@ function Player(team){
 
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
 		this.v_y -= CONST.PLAYER_FRICTION*this.v_y*interval;
-
+		
+		if (this.stat & CONST.PLAYER_STATUS_DEAD)
+		{
+			this.move_command_state = 0;
+			this.angle -= CONST.PLAYER_ROTATE_SPEED*interval;
+		}
+		
 		if (this.shield_fade > 0) this.shield_fade -= interval;
 		if (this.fire_battery > 0) this.fire_battery -= interval;
-
+		
 		if (this.move_command_state & CONST.COMMAND_ROTATE_CC) this.angle -= CONST.PLAYER_ROTATE_SPEED*interval;
 		if (this.move_command_state & CONST.COMMAND_MOVE_FORWARD)
 		{
@@ -282,7 +282,6 @@ function Player(team){
 			context.stroke();
 		}
 		context.restore();
-
 
 		if (this.health > 0){
 		for (var i = -1; i <= 1; i += 2){
@@ -649,11 +648,6 @@ function Game()
 	var player_id = 0;
 
 	var par_col = {};
-	
-	var par_arr = [];
-	var par_arr_index = 0;
-	var par_arr_size = 0;
-
 	var obj_col = {};
 
 	this.initialize = function () {
@@ -674,7 +668,9 @@ function Game()
 		console.log("Attempting to connect to " + server_url);
 		
 		socket = io.connect(server_url);
-		if (!socket) console.log("Server is down");
+		//if (socket) console.log("Server is down");
+		socket.on("connect", function(){console.log("connected...");});
+		socket.on("error", function(){console.log("connection error...");});
 		
 		socket.on("connected", function(data){ player_id = data.p_id; player_col[player_id] = new Player(data.team); });
 		
@@ -747,7 +743,7 @@ function Game()
 		socket.on("obj_delete", function(data) { delete obj_col[data]; });
 		
 		var init_wait = function(){
-			if (background.background_ready && player_id != 0){
+			if (player_id != 0){
 				socket.on("pong", function(data){
 					if (player_id == 0) return;
 					if (typeof player_col[data.p_id] === 'undefined')
@@ -787,15 +783,15 @@ function Game()
 	};
 
 	this.refresh = function () {
-		if (key_down[CONST.KEY_CODE_ROTATE_CC]) player_col[player_id].move_command_state += CONST.COMMAND_ROTATE_CC;
-		if (key_down[CONST.KEY_CODE_MOVE_FORWARD]) player_col[player_id].move_command_state += CONST.COMMAND_MOVE_FORWARD;
-		if (key_down[CONST.KEY_CODE_ROTATE_CW]) player_col[player_id].move_command_state += CONST.COMMAND_ROTATE_CW;
-		if (key_down[CONST.KEY_CODE_MOVE_BACKWARD]) player_col[player_id].move_command_state += CONST.COMMAND_MOVE_BACKWARD;
-		if (key_down[CONST.KEY_CODE_STRAFE_LEFT]) player_col[player_id].move_command_state += CONST.COMMAND_STRAFE_LEFT;
-		if (key_down[CONST.KEY_CODE_STRAFE_RIGHT]) player_col[player_id].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
-		if (key_down[CONST.KEY_CODE_FIRE]) player_col[player_id].move_command_state += CONST.COMMAND_FIRE;
-		if (key_down[CONST.KEY_CODE_G_OBJECT]) player_col[player_id].move_command_state += CONST.COMMAND_G_OBJECT;
-		if (key_down[CONST.KEY_CODE_BOMB]) player_col[player_id].move_command_state += CONST.COMMAND_BOMB;
+		if (key_down[CONST.KEY_CODE_ROTATE_CC]) player_col[player_id].move_command_state |= CONST.COMMAND_ROTATE_CC;
+		if (key_down[CONST.KEY_CODE_MOVE_FORWARD]) player_col[player_id].move_command_state |= CONST.COMMAND_MOVE_FORWARD;
+		if (key_down[CONST.KEY_CODE_ROTATE_CW]) player_col[player_id].move_command_state |= CONST.COMMAND_ROTATE_CW;
+		if (key_down[CONST.KEY_CODE_MOVE_BACKWARD]) player_col[player_id].move_command_state |= CONST.COMMAND_MOVE_BACKWARD;
+		if (key_down[CONST.KEY_CODE_STRAFE_LEFT]) player_col[player_id].move_command_state |= CONST.COMMAND_STRAFE_LEFT;
+		if (key_down[CONST.KEY_CODE_STRAFE_RIGHT]) player_col[player_id].move_command_state |= CONST.COMMAND_STRAFE_RIGHT;
+		if (key_down[CONST.KEY_CODE_FIRE]) player_col[player_id].move_command_state |= CONST.COMMAND_FIRE;
+		if (key_down[CONST.KEY_CODE_G_OBJECT]) player_col[player_id].move_command_state |= CONST.COMMAND_G_OBJECT;
+		if (key_down[CONST.KEY_CODE_BOMB]) player_col[player_id].move_command_state |= CONST.COMMAND_BOMB;
 		
 		var refresh_interval = refresh_timer.interval;
 
