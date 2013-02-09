@@ -66,6 +66,10 @@ var obj_ids_to_del = [];
 var power_up_count = {};
 power_up_count[CONST.POWER_UP_CLOAK] = power_up_count[CONST.POWER_UP_INVINCIBLE] = power_up_count[CONST.POWER_UP_G_OBJECT] = power_up_count[CONST.POWER_UP_BOMB] = 0;
 
+var team_count = [];
+
+team_count[CONST.TEAM1] = team_count[CONST.TEAM2] = 0;
+
 var main_timer = new Timer();
 
 setInterval(function () {
@@ -106,8 +110,9 @@ io.sockets.on('connection', function (socket) {
 	player_list[socket.id] = {
 		start_interval: Date.now(),
 		end_interval: null,
-		player:new Player(PLAYER_ID, Math.ceil(2*Math.random()))
+		player:new Player(PLAYER_ID, team_count[CONST.TEAM1]>team_count[CONST.TEAM2]?CONST.TEAM2:CONST.TEAM1)
 	};
+	team_count[player_list[socket.id].player.team]++;
 
 	console.log("player " + player_list[socket.id].player.player_id + " connected on socket " + socket.id + ". ponging now...");
 	
@@ -142,6 +147,7 @@ io.sockets.on('connection', function (socket) {
 		console.log("player " + player_list[socket.id].player.player_id + " disconnected");
 		socket.broadcast.emit('player_removed', player_list[socket.id].player.player_id);
 		player_list[socket.id].player.disconnect(par_ids_to_del);
+		team_count[player_list[socket.id].player.team]--;
 		delete player_list[socket.id];
 	});
 });
@@ -647,7 +653,7 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 		{
 			this.v_x = this.v_y = 0;
 			var disX, disY, distance2, distance, force;
-			for (var i in par_col)
+			/*for (var i in par_col)
 			{
 					disX = this.pos_x - par_col[i].pos_x;
 					disY = this.pos_y - par_col[i].pos_y;
@@ -664,7 +670,7 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 						par_col[i].v_x -= CONST.G_OBJECT_FRICTION*par_col[i].v_x*interval;
 						par_col[i].v_y -= CONST.G_OBJECT_FRICTION*par_col[i].v_y*interval;
 					}
-			}
+			}*/
 			for (var i in player_list){
 				disX = this.pos_x - player_list[i].player.pos_x;
 				disY = this.pos_y - player_list[i].player.pos_y;

@@ -9,10 +9,25 @@ MAP_SIZE: 11
 
 var constants =
 {
+
+ABOUT: "Gravity is a multiplayer space shooter written in javascript using HTML5 Canvas on the client and node.js on the server side.\n\nMovement: Arrow keys to manuever, keys 'E' and 'R' to strafe left and right respectively\n\nBullets (default key 'S'): Supply is limitless but after ten have been fired the earliest bullet fired will disappear.\n\nPower-Ups:\nBomb (B) (default key 'B'): A five second count down. The bomb will not harm players on the same team but will still cause a blast effect. Damage to enemy players drops off with distance.\n\nG_Object (G) (default key 'G'): The G_Object is a gravity well with a three second countdown. It will attract enemy team players, all bullets, and all bombs for fifteen seconds.\n\nCloak (C): Your ship will be invisible to all players for 15 seconds.\n\nInvincibility (I): Your ship will take no damage for 10 seconds.",
+
 FPS: 35,
 UPS: 35,
 TIME_INTERVAL: 1000,
 FRAME_MAX: 30,
+
+KEY_CODE_DEBUG: 68,
+KEY_CODE_FRAMERATE: 70,
+KEY_CODE_ROTATE_CC: 37,
+KEY_CODE_ROTATE_CW: 39,
+KEY_CODE_MOVE_FORWARD: 38,
+KEY_CODE_MOVE_BACKWARD: 40,
+KEY_CODE_STRAFE_LEFT: 69,
+KEY_CODE_STRAFE_RIGHT: 82,
+KEY_CODE_FIRE: 83,
+KEY_CODE_G_OBJECT: 71,
+KEY_CODE_BOMB: 66,
 
 POSITION_CORRECT_X: 40,
 POSITION_CORRECT_Y: 40,
@@ -150,4 +165,4 @@ COMMAND_BOMB: 4096
 
 exports.getConstants = function () {return constants;}
 
-})(typeof exports === 'undefined' ? this['constants']={}: exports);
+})(typeof exports === 'undefined' ? this['CONSTANTS']={}: exports);

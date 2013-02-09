@@ -1,7 +1,16 @@
-(function () {
+(function(exports){
 
 "use strict";
-var CONST = constants.getConstants();
+var CONST = CONSTANTS.getConstants();
+
+exports.options = function()
+{
+}
+
+exports.about = function()
+{
+	alert(CONST.ABOUT);
+}
 
 window.requestAnimFrame = (function () {
  return window.requestAnimationFrame
@@ -47,12 +56,10 @@ Timer.prototype = {
 
 function Background ()
 {
-	var self = this;
 	this.background_ready = false;
 
-	var background_canvas = $("<canvas id='background_canvas' width='" + CONST.MAP_WIDTH + "' height='" + CONST.MAP_HEIGHT + "'>Update your browser :P</canvas>");
+	var background_canvas = $("<canvas id='background_canvas' width='" + CONST.MAP_WIDTH + "' height='" + CONST.MAP_HEIGHT + "'></canvas>");
 	var background_context = background_canvas.get(0).getContext('2d');
-	//var background_img = new Image();
 
 	var sf_0 = [];
 	var pf_0 = [];
@@ -82,15 +89,12 @@ function Background ()
 		}
 		
 		console.log("Loading background to memory...");
-		/*background_img.onload = function() {self.ready();};
-		background_img.src = background_canvas.get(0).toDataURL();
-		//*/this.background_ready = true;
+		this.background_ready = true;
 	}
 
 	this.ready = function () {console.log("Background loaded."); this.background_ready = true;}
 
 	this.draw = function (context, pos_x, pos_y) {
-		//context.drawImage(background_img, pos_x, pos_y, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT, 0, 0, CONST.CANVAS_WIDTH, CONST.CANVAS_HEIGHT);
 		var gradient = context.createLinearGradient(-pos_x,-pos_y,CONST.MAP_WIDTH-pos_x,CONST.MAP_HEIGHT-pos_y);
 		gradient.addColorStop(0.0,"black");
 		gradient.addColorStop(0.3,"black");
@@ -135,7 +139,6 @@ function Player(team){
 	this.status = 0;
 	
 	var has_power_up_array = [0,0,0,0];
-	//this.request_state = 0;
 	
 	this.server_set = true;
 	
@@ -176,7 +179,6 @@ function Player(team){
 		
 		if (this.fire_battery <= 0 && this.move_command_state & CONST.COMMAND_FIRE)
 		{
-			//this.request_state += CONST.COMMAND_FIRE;
 			this.fire_battery = CONST.PLAYER_FIRE_BATTERY;
 			this.v_x -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
 			this.v_y -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
@@ -361,8 +363,6 @@ function Player(team){
 				gradient.addColorStop(1, "transparent");
 				context.fillStyle = gradient;
 				context.fill();
-//				context.lineWidth = 0;
-//				context.strokeStyle = "white";
 				context.stroke();
 			}
 				
@@ -417,7 +417,6 @@ function Particle(p_id,x,y,v_x,v_y,color){
 	return this;
 }
 
-// Gravity object class
 function G_Object(x, y, v_x, v_y, team)
 {
 	this.pos_x = x;
@@ -624,8 +623,10 @@ function Game()
 	var self = this;
 	var request_id;
 	
-	var main_canvas = $("<canvas id='main_canvas' width='" + CONST.CANVAS_WIDTH + "' height='" + CONST.CANVAS_HEIGHT + "'>Update your browser :P</canvas>");
+	var main_canvas = $("<canvas id='main_canvas' width='" + CONST.CANVAS_WIDTH + "' height='" + CONST.CANVAS_HEIGHT + "'>Update your browser</canvas>");
 	var main_context = main_canvas.get(0).getContext('2d');
+	
+	
 
 	var server_url = 'http://' + (window.location.hostname || "localhost") + ':8080';
 	var socket;
@@ -640,15 +641,14 @@ function Game()
 	var ping_timer = new Timer();
 	var interval_id;
 	
-	var debug = true;
+	var debug = false;
 	var frame_rates = false;
 	var quit = false;
 	
 	var player_col = {};
 	var player_id = 0;
 
-	var par_col = {}; // we'll try an object instead of a strict array
-	//par_col[0] = new Particle(0,10,10,100,100,"lime");
+	var par_col = {};
 	
 	var par_arr = [];
 	var par_arr_index = 0;
@@ -659,15 +659,14 @@ function Game()
 	this.initialize = function () {
 	
 		background.initialize();
-
 		
 		$(window).keydown(function (key_code) {
 			if (debug) console.log("Key down: " + key_code.keyCode);
 			key_down[key_code.keyCode]=true;
 			});
 		$(window).keyup(function (key_code) {
-			if (key_code.keyCode==68) { debug = !debug; console.log("Debug " + (debug?"on.":"off.")); }
-			if (key_code.keyCode==70) frame_rates = !frame_rates;
+			if (key_code.keyCode==CONST.KEY_CODE_DEBUG) { debug = !debug; console.log("Debug " + (debug?"on.":"off.")); }
+			if (key_code.keyCode==CONST.KEY_CODE_FRAMERATE) frame_rates = !frame_rates;
 			if (debug) console.log("Key up: " + key_code.keyCode);
 			key_down[key_code.keyCode]=false;
 			});
@@ -679,7 +678,6 @@ function Game()
 		
 		socket.on("connected", function(data){ player_id = data.p_id; player_col[player_id] = new Player(data.team); });
 		
-		//socket.on("player_added", function(data){ player_col[data] = new Player(); });
 		socket.on("player_list", function(data){
 			for (var u in data) if (typeof player_col[u] === 'undefined') player_col[u] = new Player(data[u]);
 		});
@@ -720,7 +718,6 @@ function Game()
 			
 			switch (data.type){
 				case CONST.OBJ_POWER_UP:
-				//	obj_col[data.id] = new Power_Up_Object(data.x, data.y, data.v_x, data.v_y, data.type
 				break;
 				case CONST.OBJ_G_OBJECT:
 					obj_col[data.id].status = data.status;
@@ -751,9 +748,6 @@ function Game()
 		
 		var init_wait = function(){
 			if (background.background_ready && player_id != 0){
-			
-				
-				//console.log("reached declaration");
 				socket.on("pong", function(data){
 					if (player_id == 0) return;
 					if (typeof player_col[data.p_id] === 'undefined')
@@ -761,7 +755,6 @@ function Game()
 						socket.emit("request_player_list", player_id);
 						return;
 					}
-					//if (debug) console.log(data);
 					if (debug) console.log(ping_timer.interval);
 					var diff_x = data.x - player_col[data.p_id].pos_x;
 					var diff_y = data.y - player_col[data.p_id].pos_y;
@@ -774,23 +767,18 @@ function Game()
 					if (Math.abs(diff_y) > CONST.POSITION_CORRECT_Y)
 						player_col[data.p_id].pos_y = data.y;
 					else player_col[data.p_id].pos_y += diff_y*CONST.POSITION_CORRECTION_PERCENT;
-					
-					//if (Math.abs(diff_a) > CONST.POSITION_CORRRECT_ANGLE)
-						player_col[data.p_id].angle = data.angle;
-					//else player_col[data.p_id].angle += diff_a*CONST.POSITION_CORRECTION_PERCENT;
-					
+
+					player_col[data.p_id].angle = data.angle;
 					player_col[data.p_id].v_x = data.v_x;
 					player_col[data.p_id].v_y = data.v_y;
 					player_col[data.p_id].health = data.health;
 					player_col[data.p_id].status = data.status;
 					player_col[data.p_id].server_set = true;
-					//socket.emit("ping", player_col[player_id].move_command_state);
 				});
-				//socket.emit("ping", player_col[player_id].move_command_state);
 				
 				main_canvas.appendTo("body");
 				self.update();
-				interval_id = setInterval(self.update, 1000/CONST.UPS);//*/
+				interval_id = setInterval(self.update, 1000/CONST.UPS);
 				self.draw();
 			} else setTimeout(init_wait, 500);
 		};
@@ -799,31 +787,26 @@ function Game()
 	};
 
 	this.update = function () {
-		if (key_down[37]) player_col[player_id].move_command_state += CONST.COMMAND_ROTATE_CC;
-		if (key_down[38]) player_col[player_id].move_command_state += CONST.COMMAND_MOVE_FORWARD;
-		if (key_down[39]) player_col[player_id].move_command_state += CONST.COMMAND_ROTATE_CW;
-		if (key_down[40]) player_col[player_id].move_command_state += CONST.COMMAND_MOVE_BACKWARD;
-		if (key_down[69]) player_col[player_id].move_command_state += CONST.COMMAND_STRAFE_LEFT;
-		if (key_down[82]) player_col[player_id].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
-		if (key_down[83]) player_col[player_id].move_command_state += CONST.COMMAND_FIRE;
-		if (key_down[71]) player_col[player_id].move_command_state += CONST.COMMAND_G_OBJECT;
-		if (key_down[66]) player_col[player_id].move_command_state += CONST.COMMAND_BOMB;
+		if (key_down[CONST.KEY_CODE_ROTATE_CC]) player_col[player_id].move_command_state += CONST.COMMAND_ROTATE_CC;
+		if (key_down[CONST.KEY_CODE_MOVE_FORWARD]) player_col[player_id].move_command_state += CONST.COMMAND_MOVE_FORWARD;
+		if (key_down[CONST.KEY_CODE_ROTATE_CW]) player_col[player_id].move_command_state += CONST.COMMAND_ROTATE_CW;
+		if (key_down[CONST.KEY_CODE_MOVE_BACKWARD]) player_col[player_id].move_command_state += CONST.COMMAND_MOVE_BACKWARD;
+		if (key_down[CONST.KEY_CODE_STRAFE_LEFT]) player_col[player_id].move_command_state += CONST.COMMAND_STRAFE_LEFT;
+		if (key_down[CONST.KEY_CODE_STRAFE_RIGHT]) player_col[player_id].move_command_state += CONST.COMMAND_STRAFE_RIGHT;
+		if (key_down[CONST.KEY_CODE_FIRE]) player_col[player_id].move_command_state += CONST.COMMAND_FIRE;
+		if (key_down[CONST.KEY_CODE_G_OBJECT]) player_col[player_id].move_command_state += CONST.COMMAND_G_OBJECT;
+		if (key_down[CONST.KEY_CODE_BOMB]) player_col[player_id].move_command_state += CONST.COMMAND_BOMB;
 		
 		var update_interval = update_timer.interval;
 
-//		if (player_col[player_id].move_command_state > 0) socket_worker.postMessage(player_col[player_id].move_command_state);
 		if (player_col[player_id].server_set)
 		{
 			socket.emit("ping", player_col[player_id].move_command_state);
 			player_col[player_id].server_set = false;
 		}
 		
-		//player_col[player_id].update(update_interval);
-		for (var i in player_col) player_col[i].update(update_interval);
-		
-//		for (var i = 0; i < par_arr_size; i++) par_arr[i].update(update_interval);
-		for (var i in par_col) par_col[i].update(update_interval);
-
+		for (var u in player_col) player_col[u].update(update_interval);
+		for (var u in par_col) par_col[u].update(update_interval);
 		for (var u in obj_col) obj_col[u].update(update_interval);
 
 		if (frame_rates) console.log("update interval: " + update_interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
@@ -832,14 +815,12 @@ function Game()
 
 	this.draw = function () {
 		if (!quit) request_id = window.requestAnimFrame(self.draw);
-
+		
 		var draw_interval = draw_timer.interval;
-
 		background.draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
-		//for (var i = 0; i < par_arr_size; i++) par_arr[i].draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
 		for (var u in obj_col) obj_col[u].draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
-		for (var i in par_col) par_col[i].draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
-		for (var i in player_col) if (i != player_id) player_col[i].net_draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
+		for (var u in par_col) par_col[u].draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
+		for (var u in player_col) if (u != player_id) player_col[u].net_draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
 		player_col[player_id].draw(main_context);
 		
 		if (frame_rates) console.log("draw interval: " + draw_interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
@@ -852,4 +833,4 @@ var main_game = new Game();
 
 main_game.initialize();
 
-})();
+})(this['Gravity']={});
