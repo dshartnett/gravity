@@ -76,8 +76,8 @@ setInterval(function () {
 	//console.log(Date.now() + "    " + Math.random()*Math.pow(2,32));
 	var server_interval = main_timer.interval;
 //	if(100*Math.random() < 1) obj_col[++OBJ_ID] = new G_Object(Math.random()*CONST.MAP_WIDTH, Math.random()*CONST.MAP_HEIGHT, 0, 0, 0, OBJ_ID, 0);
-	for (var u in player_list) player_list[u].player.update(server_interval, par_col, obj_col, par_ids_to_del);
-	for (var u in par_col) par_col[u].update(server_interval);
+	for (var u in player_list) player_list[u].player.refresh(server_interval, par_col, obj_col, par_ids_to_del);
+	for (var u in par_col) par_col[u].refresh(server_interval);
 	for (var i = 0, len = par_ids_to_del.length; i < len; i++) {
 		console.log("deleting particle " + par_ids_to_del[0] + " and emitting delete");
 		io.sockets.emit("par_delete", par_ids_to_del[0]);
@@ -85,7 +85,7 @@ setInterval(function () {
 	}
 	power_up_count[CONST.POWER_UP_CLOAK] = power_up_count[CONST.POWER_UP_INVINCIBLE] = power_up_count[CONST.POWER_UP_G_OBJECT] = power_up_count[CONST.POWER_UP_BOMB] = 0;
 	for (var u in obj_col){
-		obj_col[u].update(server_interval, par_col, obj_col, player_list, obj_ids_to_del);
+		obj_col[u].refresh(server_interval, par_col, obj_col, player_list, obj_ids_to_del);
 		if(obj_col[u].object_type == CONST.OBJ_POWER_UP) power_up_count[obj_col[u].power_up_type]++;
 	}
 	//console.log(power_up_count);
@@ -132,7 +132,7 @@ io.sockets.on('connection', function (socket) {
 		//console.log("pinged with: " + data + " player id: " + player_list[socket.id].player.player_id + "  socket id: " + socket.id + " interval: " + interval);
 
 		player_list[socket.id].player.move_command_state = data;
-		//player_list[socket.id].player.update(interval);
+		//player_list[socket.id].player.refresh(interval);
 
 		player_list[socket.id].start_interval = Date.now();
 
@@ -170,7 +170,7 @@ function Particle(x,y,v_x,v_y,team,particle_id,player_id){
 
 		this.data = function() {return {id:this.particle_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y};};
 		
-        this.update = function(interval) {
+        this.refresh = function(interval) {
 				this.last_pos_x = this.pos_x;
 				this.last_pos_y = this.pos_y;
                 this.pos_x += this.v_x*interval;
@@ -205,7 +205,7 @@ function Player(player_id, team){
 	this.cloak_timer = 0;
 	this.invincible_timer = 0;
 	this.fire_battery = 0;
-	this.status = 0;
+	this.stat = 0;
 	
 	this.move_command_state = 0;
 	
@@ -228,21 +228,21 @@ function Player(player_id, team){
 		this.pos_y = (0.1 + Math.random()*0.8)*CONST.MAP_HEIGHT;
 		this.dying_timer = 0;
 		this.fire_battery = 0;
-		this.status = 0;
+		this.stat = 0;
 	};
 
 	this.data = function(other_id){
-		if (this.status & CONST.PLAYER_STATUS_CLOAKED && this.player_id != other_id)
-			return {p_id:this.player_id, x:0, y:0, v_x:0, v_y:0, angle:0, health:this.health, status:this.status};
+		if (this.stat & CONST.PLAYER_STATUS_CLOAKED && this.player_id != other_id)
+			return {p_id:this.player_id, x:0, y:0, v_x:0, v_y:0, angle:0, health:this.health, stat:this.stat};
 		else 
-			return {p_id:this.player_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y, angle:this.angle, health:this.health, status:this.status};
+			return {p_id:this.player_id, x:this.pos_x, y:this.pos_y, v_x:this.v_x, v_y:this.v_y, angle:this.angle, health:this.health, stat:this.stat};
 	};
 
-	this.update = function (interval, par_col, obj_col, par_ids_to_del) {
+	this.refresh = function (interval, par_col, obj_col, par_ids_to_del) {
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
 		this.v_y -= CONST.PLAYER_FRICTION*this.v_y*interval;
 
-		if (this.status & CONST.PLAYER_STATUS_DEAD)
+		if (this.stat & CONST.PLAYER_STATUS_DEAD)
 		{
 			this.dying_timer -= interval;
 			this.move_command_state = 0;
@@ -250,11 +250,11 @@ function Player(player_id, team){
 		if (this.dying_timer < 0) this.spawn();
 		
 		
-		if (this.status & CONST.PLAYER_STATUS_CLOAKED) this.cloak_timer -= interval;
-		if (this.cloak_timer < 0) this.status &= ~CONST.PLAYER_STATUS_CLOAKED;
+		if (this.stat & CONST.PLAYER_STATUS_CLOAKED) this.cloak_timer -= interval;
+		if (this.cloak_timer < 0) this.stat &= ~CONST.PLAYER_STATUS_CLOAKED;
 		
-		if (this.status & CONST.PLAYER_STATUS_INVINCIBLE) this.invincible_timer -= interval;
-		if (this.invincible_timer < 0) this.status &= ~CONST.PLAYER_STATUS_INVINCIBLE;
+		if (this.stat & CONST.PLAYER_STATUS_INVINCIBLE) this.invincible_timer -= interval;
+		if (this.invincible_timer < 0) this.stat &= ~CONST.PLAYER_STATUS_INVINCIBLE;
 		
 		//if (this.shield_fade > 0) this.shield_fade -= interval;
 		if (this.fire_battery > 0) this.fire_battery -= interval;
@@ -308,7 +308,7 @@ function Player(player_id, team){
 			}
 		}
 		//else this.fire_request = false;
-		if (this.status & CONST.PLAYER_STATUS_HAS_G_OBJECT && this.move_command_state & CONST.COMMAND_G_OBJECT)
+		if (this.stat & CONST.PLAYER_STATUS_HAS_G_OBJECT && this.move_command_state & CONST.COMMAND_G_OBJECT)
 		{
 			var temp_v_x = this.v_x;
 			var temp_v_y = this.v_y;
@@ -321,9 +321,9 @@ function Player(player_id, team){
 				temp_v_y + CONST.G_OBJECT_INITIAL_VELOCITY*Math.sin(this.angle),
 				this.team, OBJ_ID, this.player_id);
 			console.log("player " + this.player_id + " launched G_Object " + OBJ_ID);
-			this.status -= CONST.PLAYER_STATUS_HAS_G_OBJECT;
+			this.stat -= CONST.PLAYER_STATUS_HAS_G_OBJECT;
 		}
-		if (this.status & CONST.PLAYER_STATUS_HAS_BOMB && this.move_command_state & CONST.COMMAND_BOMB)
+		if (this.stat & CONST.PLAYER_STATUS_HAS_BOMB && this.move_command_state & CONST.COMMAND_BOMB)
 		{
 			var temp_v_x = this.v_x;
 			var temp_v_y = this.v_y;
@@ -336,16 +336,16 @@ function Player(player_id, team){
 				temp_v_y + CONST.G_OBJECT_INITIAL_VELOCITY*Math.sin(this.angle),
 				this.team, OBJ_ID, this.player_id);
 			console.log("player " + this.player_id + " launched bomb " + OBJ_ID);
-			this.status -= CONST.PLAYER_STATUS_HAS_BOMB;
+			this.stat -= CONST.PLAYER_STATUS_HAS_BOMB;
 		}
 
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
 		
-		this.status &= ~CONST.PLAYER_STATUS_MOVING;
-		this.status |= this.move_command_state & CONST.PLAYER_MOVING?CONST.PLAYER_STATUS_MOVING:0;
+		this.stat &= ~CONST.PLAYER_STATUS_MOVING;
+		this.stat |= this.move_command_state & CONST.PLAYER_MOVING?CONST.PLAYER_STATUS_MOVING:0;
 		
-		if (this.health < CONST.PLAYER_MAX_HEALTH && !(this.status & CONST.PLAYER_STATUS_DEAD)) this.health += CONST.PLAYER_HEALTH_REGEN*interval;
+		if (this.health < CONST.PLAYER_MAX_HEALTH && !(this.stat & CONST.PLAYER_STATUS_DEAD)) this.health += CONST.PLAYER_HEALTH_REGEN*interval;
 		if (this.health > CONST.PLAYER_MAX_HEALTH) this.health = CONST.PLAYER_MAX_HEALTH;
 		
 		var invincible_health_save = this.health;
@@ -376,29 +376,29 @@ function Player(player_id, team){
 					switch(obj_col[u].power_up_type)
 					{
 						case CONST.POWER_UP_CLOAK:
-							if (!(this.status & CONST.PLAYER_STATUS_CLOAKED))
+							if (!(this.stat & CONST.PLAYER_STATUS_CLOAKED))
 							{
-								this.status += CONST.PLAYER_STATUS_CLOAKED*obj_col[u].power_up();
+								this.stat += CONST.PLAYER_STATUS_CLOAKED*obj_col[u].power_up();
 								this.cloak_timer = CONST.PLAYER_CLOAK_TIMER_MAX;
 							}
 						break;
 						case CONST.POWER_UP_INVINCIBLE:
-							if (!(this.status & CONST.PLAYER_STATUS_INVINCIBLE))
+							if (!(this.stat & CONST.PLAYER_STATUS_INVINCIBLE))
 							{
-								this.status += CONST.PLAYER_STATUS_INVINCIBLE*obj_col[u].power_up();
+								this.stat += CONST.PLAYER_STATUS_INVINCIBLE*obj_col[u].power_up();
 								this.invincible_timer = CONST.PLAYER_INVINCIBLE_TIMER_MAX;
 							}
 						break;
 						case CONST.POWER_UP_G_OBJECT:
-							if (!(this.status & CONST.PLAYER_STATUS_HAS_G_OBJECT))
+							if (!(this.stat & CONST.PLAYER_STATUS_HAS_G_OBJECT))
 							{
-								this.status += CONST.PLAYER_STATUS_HAS_G_OBJECT*obj_col[u].power_up();
+								this.stat += CONST.PLAYER_STATUS_HAS_G_OBJECT*obj_col[u].power_up();
 							}
 						break;
 						case CONST.POWER_UP_BOMB:
-							if (!(this.status & CONST.PLAYER_STATUS_HAS_BOMB))
+							if (!(this.stat & CONST.PLAYER_STATUS_HAS_BOMB))
 							{
-								this.status += CONST.PLAYER_STATUS_HAS_BOMB*obj_col[u].power_up();
+								this.stat += CONST.PLAYER_STATUS_HAS_BOMB*obj_col[u].power_up();
 							}
 						break;
 					}
@@ -415,8 +415,8 @@ function Player(player_id, team){
 		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
 			{this.v_y = -CONST.PLAYER_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius; this.health -= -CONST.WALL_DAMAGE_MULTIPLIER*this.v_y + CONST.WALL_DAMAGE_MINIMUM;}
 
-		if (this.status & CONST.PLAYER_STATUS_INVINCIBLE) this.health = invincible_health_save;
-		if (this.health < 0 && !(this.status & CONST.PLAYER_STATUS_DEAD)) {this.status |= CONST.PLAYER_STATUS_DEAD; this.dying_timer = CONST.PLAYER_DEAD_COUNTER_MAX;}
+		if (this.stat & CONST.PLAYER_STATUS_INVINCIBLE) this.health = invincible_health_save;
+		if (this.health < 0 && !(this.stat & CONST.PLAYER_STATUS_DEAD)) {this.stat |= CONST.PLAYER_STATUS_DEAD; this.dying_timer = CONST.PLAYER_DEAD_COUNTER_MAX;}
 	};
 	return this;
 }
@@ -451,7 +451,7 @@ function Power_Up_Object(obj_id, x, y, v_x, v_y, power_up_type)
 			v_y:this.v_y};
 	};
 	
-	this.update = function(interval, par_col, obj_col, player_list, obj_ids_to_del)
+	this.refresh = function(interval, par_col, obj_col, player_list, obj_ids_to_del)
 	{		
 		if (this.pos_x - this.radius <= 0)
 			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
@@ -485,7 +485,7 @@ function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
 	this.player_id = player_id;
 
 	this.timer = CONST.G_OBJECT_TIME_TO_DET;
-	this.status = 0;
+	this.stat = 0;
 
 	this.data = function(){
 		return {id:this.obj_id,
@@ -495,11 +495,11 @@ function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
 			v_x:this.v_x,
 			v_y:this.v_y,
 			team:this.team,
-			status:this.status,
+			stat:this.stat,
 			timer:this.timer};
 	};
 
-	this.update = function(interval, par_col, obj_col, player_list, obj_ids_to_del)
+	this.refresh = function(interval, par_col, obj_col, player_list, obj_ids_to_del)
 	{		
 		if (this.pos_x - this.radius <= 0)
 			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
@@ -515,24 +515,24 @@ function G_Object(x, y, v_x, v_y, team, obj_id, player_id)
 
 		this.timer -= interval;
 		if (this.timer < 0){
-			if (this.status == 0){
-				this.status |= CONST.G_OBJECT_STATUS_DETONATED;
+			if (this.stat == 0){
+				this.stat |= CONST.G_OBJECT_STATUS_DETONATED;
 				this.timer = CONST.G_OBJECT_TIME_TO_LAST;
 				this.radius = CONST.G_OBJECT_MAX_RADIUS;
 				console.log("boom!");
 			}
-			else if (this.status & CONST.G_OBJECT_STATUS_DETONATED)//add to objects to delete
+			else if (this.stat & CONST.G_OBJECT_STATUS_DETONATED)//add to objects to delete
 			{
 			//	this.pos_x = this.pos_y = 100;
 			//	this.v_x = this.v_y = 0.01;
 			//	this.timer = CONST.G_OBJECT_TIME_TO_DET;
-			//	this.status = 0;
+			//	this.stat = 0;
 				obj_ids_to_del.push(this.obj_id);
 				console.log("object added to delete array");
 			}
 		}
 
-		if (this.status & CONST.G_OBJECT_STATUS_DETONATED)
+		if (this.stat & CONST.G_OBJECT_STATUS_DETONATED)
 		{
 			var disX, disY, distance2, distance, force;
 			for (var i in par_col)
@@ -606,7 +606,7 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 	this.player_id = player_id;
 
 	this.timer = CONST.BOMB_TIME_TO_DET;
-	this.status = 0;
+	this.stat = 0;
 
 	this.data = function(){
 		return {id:this.obj_id,
@@ -616,11 +616,11 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 			v_x:this.v_x,
 			v_y:this.v_y,
 			team:this.team,
-			status:this.status,
+			stat:this.stat,
 			timer:this.timer};
 	};
 
-	this.update = function(interval, par_col, obj_col, player_list, obj_ids_to_del)
+	this.refresh = function(interval, par_col, obj_col, player_list, obj_ids_to_del)
 	{		
 		if (this.pos_x - this.radius <= 0)
 			{this.v_x = -CONST.BOMB_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
@@ -636,20 +636,20 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 
 		this.timer -= interval;
 		if (this.timer < 0){
-			if (this.status == 0){
-				this.status |= CONST.BOMB_STATUS_DETONATED;
+			if (this.stat == 0){
+				this.stat |= CONST.BOMB_STATUS_DETONATED;
 				this.timer = CONST.BOMB_TIME_TO_LAST;
 				//this.radius = CONST.BOMB_BLAST_RADIUS;
 				console.log("boom!");
 			}
-			else if (this.status & CONST.BOMB_STATUS_DETONATED)//add to objects to delete
+			else if (this.stat & CONST.BOMB_STATUS_DETONATED)//add to objects to delete
 			{
 				obj_ids_to_del.push(this.obj_id);
 				console.log("object added to delete array");
 			}
 		}
 
-		if (this.status & CONST.BOMB_STATUS_DETONATED)
+		if (this.stat & CONST.BOMB_STATUS_DETONATED)
 		{
 			this.v_x = this.v_y = 0;
 			var disX, disY, distance2, distance, force;
@@ -681,7 +681,7 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 					force = this.mass/distance2;
 					player_list[i].player.v_x -= interval*disX*force/distance;
 					player_list[i].player.v_y -= interval*disY*force/distance;
-					if (!(player_list[i].player.status & CONST.PLAYER_STATUS_INVINCIBLE) && this.team != player_list[i].player.team) player_list[i].player.health -= CONST.BOMB_DAMAGE_FACTOR*interval/distance;
+					if (!(player_list[i].player.stat & CONST.PLAYER_STATUS_INVINCIBLE) && this.team != player_list[i].player.team) player_list[i].player.health -= CONST.BOMB_DAMAGE_FACTOR*interval/distance;
 				}
 			}
 		}

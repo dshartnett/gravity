@@ -1,13 +1,13 @@
-(function(exports){
+(function(make_global){
 
 "use strict";
 var CONST = CONSTANTS.getConstants();
 
-exports.options = function()
+make_global.options = function()
 {
 }
 
-exports.about = function()
+make_global.about = function()
 {
 	alert(CONST.ABOUT);
 }
@@ -113,8 +113,8 @@ function Background ()
 }
 
 function Player(team){
-	this.pos_x = 500;
-	this.pos_y = 500;
+	this.pos_x = 0;
+	this.pos_y = 0;
 	this.angle = 0;
 	this.v_x = 0;
 	this.v_y = 0;
@@ -136,17 +136,17 @@ function Player(team){
 	this.fire_battery = 0;
 	
 	this.move_command_state = 0;
-	this.status = 0;
+	this.stat = 0;
 	
 	var has_power_up_array = [0,0,0,0];
 	
 	this.server_set = true;
 	
-	this.update = function (interval) {
-		has_power_up_array[CONST.POWER_UP_CLOAK] = this.status & CONST.PLAYER_STATUS_CLOAKED;
-		has_power_up_array[CONST.POWER_UP_INVINCIBLE] = this.status & CONST.PLAYER_STATUS_INVINCIBLE;
-		has_power_up_array[CONST.POWER_UP_G_OBJECT] = this.status & CONST.PLAYER_STATUS_HAS_G_OBJECT;
-		has_power_up_array[CONST.POWER_UP_BOMB] = this.status & CONST.PLAYER_STATUS_HAS_BOMB;
+	this.refresh = function (interval) {
+		has_power_up_array[CONST.POWER_UP_CLOAK] = this.stat & CONST.PLAYER_STATUS_CLOAKED;
+		has_power_up_array[CONST.POWER_UP_INVINCIBLE] = this.stat & CONST.PLAYER_STATUS_INVINCIBLE;
+		has_power_up_array[CONST.POWER_UP_G_OBJECT] = this.stat & CONST.PLAYER_STATUS_HAS_G_OBJECT;
+		has_power_up_array[CONST.POWER_UP_BOMB] = this.stat & CONST.PLAYER_STATUS_HAS_BOMB;
 
 		this.v_x -= CONST.PLAYER_FRICTION*this.v_x*interval;
 		this.v_y -= CONST.PLAYER_FRICTION*this.v_y*interval;
@@ -183,7 +183,7 @@ function Player(team){
 			this.v_x -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
 			this.v_y -= CONST.PARTICLE_MASS*CONST.PARTICLE_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;
 		}
-		if (this.status & CONST.PLAYER_STATUS_HAS_G_OBJECT && this.move_command_state & CONST.COMMAND_G_OBJECT)
+		if (this.stat & CONST.PLAYER_STATUS_HAS_G_OBJECT && this.move_command_state & CONST.COMMAND_G_OBJECT)
 		{
 			this.v_x -= CONST.G_OBJECT_LAUNCH_MASS*CONST.G_OBJECT_INITIAL_VELOCITY*Math.cos(this.angle)/this.mass;
 			this.v_y -= CONST.G_OBJECT_LAUNCH_MASS*CONST.G_OBJECT_INITIAL_VELOCITY*Math.sin(this.angle)/this.mass;	
@@ -326,7 +326,7 @@ function Player(team){
 	};
 	
 	this.net_draw = function(context, map_pos_x, map_pos_y){
-		if (this.status & CONST.PLAYER_STATUS_CLOAKED) return;
+		if (this.stat & CONST.PLAYER_STATUS_CLOAKED) return;
 		var x = this.pos_x - map_pos_x;
 		var y = this.pos_y - map_pos_y;
 		if (x >= (-this.radius) && x <= (CONST.CANVAS_WIDTH + this.radius) && y >= (-this.radius) && y <= (CONST.CANVAS_HEIGHT + this.radius))
@@ -384,7 +384,7 @@ function Player(team){
 	return this;
 }
 
-function Particle(p_id,x,y,v_x,v_y,color){
+function Particle(p_id,x,y,v_x,v_y,p_color){
 	this.id = p_id;
 	this.pos_x = x;
 	this.pos_y = y;
@@ -392,11 +392,11 @@ function Particle(p_id,x,y,v_x,v_y,color){
 	this.v_y = v_y;
 	this.mass = CONST.PARTICLE_MASS;
 	this.charge = CONST.PARTICLE_CHARGE;
-	this.color = color;
+	this.p_color = p_color;
 	this.size = CONST.PARTICLE_SIZE;
 	this.half_size = this.size/2;
 	
-	this.update = function(interval) {
+	this.refresh = function(interval) {
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
 		
@@ -408,7 +408,7 @@ function Particle(p_id,x,y,v_x,v_y,color){
 	}
 
 	this.draw = function(context, map_pos_x, map_pos_y) {
-		context.fillStyle = this.color;
+		context.fillStyle = this.p_color;
 		var x = this.pos_x - map_pos_x;
 		var y = this.pos_y - map_pos_y;
 		if (x >= 0 && x <= CONST.CANVAS_WIDTH && y >= 0 && y <= CONST.CANVAS_HEIGHT)
@@ -430,10 +430,10 @@ function G_Object(x, y, v_x, v_y, team)
 	this.team = team;
 
 	this.timer = CONST.G_OBJECT_TIME_TO_DET;
-	this.status = 0;
+	this.stat = 0;
 
 
-	this.update = function(interval, par_col, player_list, obj_ids_to_del)
+	this.refresh = function(interval, par_col, player_list, obj_ids_to_del)
 	{		
 		if (this.pos_x - this.radius <= 0)
 			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
@@ -447,7 +447,7 @@ function G_Object(x, y, v_x, v_y, team)
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
 
-		if (this.status & CONST.G_OBJECT_STATUS_DETONATED) this.radius = CONST.G_OBJECT_MAX_RADIUS;
+		if (this.stat & CONST.G_OBJECT_STATUS_DETONATED) this.radius = CONST.G_OBJECT_MAX_RADIUS;
 
 		this.timer -= interval;
 		if (this.timer < 0) this.timer = 0;
@@ -464,10 +464,10 @@ function G_Object(x, y, v_x, v_y, team)
 			context.translate(x, y);
 
 			var gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1*this.radius);
-			if (this.status == 0){
+			if (this.stat == 0){
 				gradient.addColorStop(0, CONST.TEAM_LIGHT[this.team]);
 				gradient.addColorStop(1, CONST.TEAM_DARK[this.team]);
-			} else if (this.status & CONST.G_OBJECT_STATUS_DETONATED){
+			} else if (this.stat & CONST.G_OBJECT_STATUS_DETONATED){
 				gradient.addColorStop(0, "transparent");
 				gradient.addColorStop(1 - this.timer/CONST.G_OBJECT_TIME_TO_LAST, CONST.TEAM_DARK[this.team]);
 				gradient.addColorStop(1, "transparent");
@@ -477,7 +477,7 @@ function G_Object(x, y, v_x, v_y, team)
 			context.fillStyle = gradient;
 			context.fill();
 			context.stroke();
-			if (this.status == 0){
+			if (this.stat == 0){
 				context.fillStyle = CONST.POWER_UP_TEXT_COLOR;
 				context.font = CONST.POWER_UP_FONT;
 				context.fillText(Math.ceil(this.timer/1000),-6,5);
@@ -504,9 +504,9 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 	this.player_id = player_id;
 
 	this.timer = CONST.BOMB_TIME_TO_DET;
-	this.status = 0;
+	this.stat = 0;
 
-	this.update = function(interval, par_col, player_list, obj_ids_to_del)
+	this.refresh = function(interval, par_col, player_list, obj_ids_to_del)
 	{		
 		if (this.pos_x - CONST.BOMB_MIN_RADIUS <= 0)
 			{this.v_x = -CONST.BOMB_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
@@ -519,7 +519,7 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 			
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
-		if (this.status & CONST.BOMB_STATUS_DETONATED) this.radius = CONST.BOMB_BLAST_RADIUS;
+		if (this.stat & CONST.BOMB_STATUS_DETONATED) this.radius = CONST.BOMB_BLAST_RADIUS;
 		
 		this.timer -= interval;
 		if (this.timer < 0) this.timer = 0;
@@ -536,10 +536,10 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 			context.translate(x, y);
 
 			var gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1*this.radius);
-			if (this.status == 0){
+			if (this.stat == 0){
 				gradient.addColorStop(0, CONST.TEAM_LIGHT[this.team]);
 				gradient.addColorStop(1, CONST.TEAM_DARK[this.team]);
-			} else if (this.status & CONST.BOMB_STATUS_DETONATED){
+			} else if (this.stat & CONST.BOMB_STATUS_DETONATED){
 				gradient.addColorStop(0, "transparent");
 				gradient.addColorStop(1 - this.timer/CONST.BOMB_TIME_TO_LAST, CONST.TEAM_LIGHT[this.team]);
 				gradient.addColorStop(1, "transparent");
@@ -551,7 +551,7 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 			context.lineWidth = 0;
 			context.strokeStyle = "transparent";
 			context.stroke();
-			if (this.status == 0){
+			if (this.stat == 0){
 				context.fillStyle = CONST.POWER_UP_TEXT_COLOR;
 				context.font = CONST.POWER_UP_FONT;
 				context.fillText(Math.ceil(this.timer/1000),-6,5);
@@ -574,7 +574,7 @@ function Power_Up_Object(x, y, v_x, v_y, power_up_type)
 	this.power_up_type = power_up_type;
 	this.text = CONST.POWER_UP_CHAR[this.power_up_type];
 	
-	this.update = function(interval)
+	this.refresh = function(interval)
 	{		
 		if (this.pos_x - this.radius <= 0)
 			{this.v_x = -CONST.G_OBJECT_WALL_LOSS*this.v_x; this.pos_x = this.radius;}
@@ -637,7 +637,7 @@ function Game()
 	var background = new Background();
 	
 	var draw_timer = new Timer();
-	var update_timer = new Timer();
+	var refresh_timer = new Timer();
 	var ping_timer = new Timer();
 	var interval_id;
 	
@@ -684,7 +684,7 @@ function Game()
 		socket.on("player_removed", function(data){delete player_col[data]; });
 		
 		socket.on("par", function(data){
-			if (typeof par_col[data.id] === 'undefined') par_col[data.id] = new Particle(data.id,data.x,data.y,data.v_x,data.v_y,"lime");
+			if (typeof par_col[data.id] === 'undefined') par_col[data.id] = new Particle(data.id,data.x,data.y,data.v_x,data.v_y,CONST.PARTICLE_COLOR);
 			var diff_x = data.x - par_col[data.id].pos_x;
 			var diff_y = data.y - par_col[data.id].pos_y;
 			
@@ -720,11 +720,11 @@ function Game()
 				case CONST.OBJ_POWER_UP:
 				break;
 				case CONST.OBJ_G_OBJECT:
-					obj_col[data.id].status = data.status;
+					obj_col[data.id].stat = data.stat;
 					obj_col[data.id].timer = data.timer;
 				break;
 				case CONST.OBJ_BOMB:
-					obj_col[data.id].status = data.status;
+					obj_col[data.id].stat = data.stat;
 					obj_col[data.id].timer = data.timer;
 				break;
 			}
@@ -772,13 +772,13 @@ function Game()
 					player_col[data.p_id].v_x = data.v_x;
 					player_col[data.p_id].v_y = data.v_y;
 					player_col[data.p_id].health = data.health;
-					player_col[data.p_id].status = data.status;
+					player_col[data.p_id].stat = data.stat;
 					player_col[data.p_id].server_set = true;
 				});
 				
 				main_canvas.appendTo("body");
-				self.update();
-				interval_id = setInterval(self.update, 1000/CONST.UPS);
+				self.refresh();
+				interval_id = setInterval(self.refresh, 1000/CONST.UPS);
 				self.draw();
 			} else setTimeout(init_wait, 500);
 		};
@@ -786,7 +786,7 @@ function Game()
 		init_wait();
 	};
 
-	this.update = function () {
+	this.refresh = function () {
 		if (key_down[CONST.KEY_CODE_ROTATE_CC]) player_col[player_id].move_command_state += CONST.COMMAND_ROTATE_CC;
 		if (key_down[CONST.KEY_CODE_MOVE_FORWARD]) player_col[player_id].move_command_state += CONST.COMMAND_MOVE_FORWARD;
 		if (key_down[CONST.KEY_CODE_ROTATE_CW]) player_col[player_id].move_command_state += CONST.COMMAND_ROTATE_CW;
@@ -797,7 +797,7 @@ function Game()
 		if (key_down[CONST.KEY_CODE_G_OBJECT]) player_col[player_id].move_command_state += CONST.COMMAND_G_OBJECT;
 		if (key_down[CONST.KEY_CODE_BOMB]) player_col[player_id].move_command_state += CONST.COMMAND_BOMB;
 		
-		var update_interval = update_timer.interval;
+		var refresh_interval = refresh_timer.interval;
 
 		if (player_col[player_id].server_set)
 		{
@@ -805,11 +805,11 @@ function Game()
 			player_col[player_id].server_set = false;
 		}
 		
-		for (var u in player_col) player_col[u].update(update_interval);
-		for (var u in par_col) par_col[u].update(update_interval);
-		for (var u in obj_col) obj_col[u].update(update_interval);
+		for (var u in player_col) player_col[u].refresh(refresh_interval);
+		for (var u in par_col) par_col[u].refresh(refresh_interval);
+		for (var u in obj_col) obj_col[u].refresh(refresh_interval);
 
-		if (frame_rates) console.log("update interval: " + update_interval + " frame rate: " + update_timer.frame_rate.toFixed(2));
+		if (frame_rates) console.log("refresh interval: " + refresh_interval + " frame rate: " + refresh_timer.frame_rate.toFixed(2));
 		if (key_down[81]) {quit = true; clearInterval(interval_id); console.log("Quit command sent");}
 	};
 
@@ -833,4 +833,4 @@ var main_game = new Game();
 
 main_game.initialize();
 
-})(this['Gravity']={});
+})(Gravity={});
