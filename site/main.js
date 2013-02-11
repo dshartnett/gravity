@@ -911,10 +911,13 @@ function Game()
 						socket['emit']("request_player_list", player_id);
 						return;
 					}
-					ping = ping_timer.interval;
-					ping_arr.shift();
-					ping_arr.push(ping);
-					if (debug) console.log(ping);
+					if (data['p_id']==player_id)
+					{
+						ping = ping_timer.interval;
+						ping_arr.shift();
+						ping_arr.push(ping);
+						if (debug) console.log(ping);
+					}
 					
 					player_col[data['p_id']].server_update(data);
 				});
