@@ -841,7 +841,7 @@ function Game()
 			context.beginPath();
 			context.strokeStyle = "lime";
 			context.lineWidth = 1;
-			context.moveTo(40+i,ping_max-ping_arr[i]>0?50-(ping_max-ping_arr[i])/50:0);
+			context.moveTo(40+i,ping_max-ping_arr[i]>0?50*(ping_max-ping_arr[i])/ping_max:0);
 			context.lineTo(40+i,50);
 			context.stroke();
 		}
