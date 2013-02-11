@@ -41,7 +41,7 @@ var staticReq = require('node-static'); // for serving files
 
 // This will make all the files in the current folder accessible
 var fileServer = new staticReq.Server('./site/');
-	
+
 // http://localhost:8080
 app.listen(8080);
 
@@ -92,7 +92,7 @@ setInterval(function () {
 	for (var u in power_up_count)
 	{
 		//console.log(u);
-		if (power_up_count[u] < 1)
+		if (power_up_count[u] < 10)
 			obj_col[++OBJ_ID] = new Power_Up_Object(OBJ_ID, Math.random()*CONST.MAP_WIDTH, Math.random()*CONST.MAP_HEIGHT, (Math.random()-0.5)*0.1, (Math.random()-0.5)*0.1, Number(u));
 	}
 	for (var i = 0, len = obj_ids_to_del.length; i < len; i++) {
@@ -116,7 +116,7 @@ io.sockets.on('connection', function (socket) {
 
 	console.log("player " + player_list[socket.id].player.player_id + " connected on socket " + socket.id + ". ponging now...");
 	
-	socket.emit("connected",{p_id:player_list[socket.id].player.player_id, team:player_list[socket.id].player.team});
+	socket.emit("player_id",{p_id:player_list[socket.id].player.player_id, team:player_list[socket.id].player.team});
 	//socket.broadcast.emit('player_added', player_list[socket.id].player.player_id);
 	socket.emit("pong",player_list[socket.id].player.data());
 
@@ -244,12 +244,13 @@ function Player(player_id, team){
 
 		if (this.stat & CONST.PLAYER_STATUS_DEAD)
 		{
+			this.cloak_timer = 0;
+			this.stat &= ~CONST.PLAYER_STATUS_CLOAKED;
 			this.dying_timer -= interval;
 			this.move_command_state = 0;
 			this.angle -= CONST.PLAYER_ROTATE_SPEED*interval;
 		}
 		if (this.dying_timer < 0) this.spawn();
-		
 		
 		if (this.stat & CONST.PLAYER_STATUS_CLOAKED) this.cloak_timer -= interval;
 		if (this.cloak_timer < 0) this.stat &= ~CONST.PLAYER_STATUS_CLOAKED;
@@ -631,7 +632,9 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 			{this.v_y = -CONST.BOMB_WALL_LOSS*this.v_y; this.pos_y = this.radius;}
 		else if (this.pos_y + this.radius >= CONST.MAP_HEIGHT)
 			{this.v_y = -CONST.BOMB_WALL_LOSS*this.v_y; this.pos_y = CONST.MAP_HEIGHT-this.radius;}
-			
+		
+		if (this.stat & CONST.BOMB_STATUS_DETONATED) this.v_x = this.v_y = 0;
+		
 		this.pos_x += this.v_x*interval;
 		this.pos_y += this.v_y*interval;
 
@@ -652,7 +655,6 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 
 		if (this.stat & CONST.BOMB_STATUS_DETONATED)
 		{
-			this.v_x = this.v_y = 0;
 			var disX, disY, distance2, distance, force;
 			/*for (var i in par_col)
 			{
