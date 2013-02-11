@@ -797,8 +797,8 @@ function Power_Up_Object(x, y, v_x, v_y, power_up_type)
 
 function Game()
 {
-	var self = this;
 	var request_id;
+	var interval_id;
 	
 	var main_canvas = $("<canvas id='main_canvas' width='" + CONST.CANVAS_WIDTH + "' height='" + CONST.CANVAS_HEIGHT + "'>Update your browser</canvas>");
 	var main_context = main_canvas.get(0).getContext('2d');
@@ -814,7 +814,10 @@ function Game()
 	var draw_timer = new Timer();
 	var refresh_timer = new Timer();
 	var ping_timer = new Timer();
-	var interval_id;
+	var ping = 0;
+	var ping_arr = [];
+	
+	for (var i=0; i<200;i++) ping_arr.push(0);
 	
 	var debug = false;
 	var frame_rates = false;
@@ -825,7 +828,26 @@ function Game()
 
 	var par_col = {};
 	var obj_col = {};
-
+	
+	function draw_ping (context)
+	{
+		var ping_max = 200;
+		context.save();
+		context.fillStyle = "lime";
+		context.fillText(ping_max, 10, 10);
+		context.fillText("0", 10, 50);
+		for (var i = 0, len = ping_arr.length; i < len; i++)
+		{
+			context.beginPath();
+			context.strokeStyle = "lime";
+			context.lineWidth = 1;
+			context.moveTo(40+i,ping_max-ping_arr[i]>0?50-(ping_max-ping_arr[i])/50:0);
+			context.lineTo(40+i,50);
+			context.stroke();
+		}
+		context.restore();
+	}
+	
 	this.initialize = function () {
 	
 		background.initialize();
@@ -889,22 +911,25 @@ function Game()
 						socket['emit']("request_player_list", player_id);
 						return;
 					}
-					if (debug) console.log(ping_timer.interval);
+					ping = ping_timer.interval;
+					ping_arr.shift();
+					ping_arr.push(ping);
+					if (debug) console.log(ping);
 					
 					player_col[data['p_id']].server_update(data);
 				});
 				
 				main_canvas['appendTo']("body");
-				self.refresh();
-				interval_id = setInterval(self.refresh, 1000/CONST.UPS);
-				self.draw();
+				refresh();
+				interval_id = setInterval(refresh, 1000/CONST.UPS);
+				draw();
 			} else setTimeout(init_wait, 500);
 		};
 		
 		init_wait();
 	};
 
-	this.refresh = function () {
+	function refresh() {
 		var refresh_interval = refresh_timer.interval;
 		
 		player_col[player_id].set_command_state(key_down);
@@ -924,8 +949,8 @@ function Game()
 		//if (!socket.socket.connected) {console.log("socket not connected, quitting"); quit = true;clearInterval(interval_id);}
 	};
 
-	this.draw = function () {
-		if (!quit) request_id = window.requestAnimFrame(self.draw);
+	function draw() {
+		if (!quit) request_id = window.requestAnimFrame(draw);//self.draw);
 		
 		var draw_interval = draw_timer.interval;
 		background.draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
@@ -934,6 +959,7 @@ function Game()
 		for (var u in player_col) if (u != player_id) player_col[u].net_draw(main_context, player_col[player_id].map_pos_x, player_col[player_id].map_pos_y);
 		player_col[player_id].draw(main_context);
 		
+		if (debug) draw_ping(main_context);
 		if (frame_rates) console.log("draw interval: " + draw_interval + " frame rate: " + draw_timer.frame_rate.toFixed(2));
 	};
 
