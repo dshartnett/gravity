@@ -678,7 +678,7 @@ function Bomb(x, y, v_x, v_y, team, obj_id, player_id)
 				disX = this.pos_x - player_list[i].player.pos_x;
 				disY = this.pos_y - player_list[i].player.pos_y;
 				distance2 = disX*disX + disY*disY;
-				if (distance2 < CONST.BOMB_MIN_RADIUS) distance2 = CONST.BOMB_MIN_RADIUS; // distance will be sqrt(CONST.BOMB_MIN_RADIUS) - lazy, i know
+				if (distance2 < CONST.BOMB_MIN_RADIUS) distance2 = CONST.BOMB_MIN_RADIUS; // distance will be sqrt(CONST.BOMB_MIN_RADIUS) - lazy
 				if (distance2 < CONST.BOMB_BLAST_RADIUS*CONST.BOMB_BLAST_RADIUS){
 					distance = Math.sqrt(distance2);
 					force = this.mass/distance2;

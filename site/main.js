@@ -835,6 +835,7 @@ function Game()
 		context.save();
 		context.fillStyle = "lime";
 		context.fillText(ping_max, 10, 10);
+		context.fillText((1000/ping_timer.frame_rate).toFixed(1), 10, 30);
 		context.fillText("0", 10, 50);
 		for (var i = 0, len = ping_arr.length; i < len; i++)
 		{
