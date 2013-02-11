@@ -92,7 +92,7 @@ setInterval(function () {
 	for (var u in power_up_count)
 	{
 		//console.log(u);
-		if (power_up_count[u] < 10)
+		if (power_up_count[u] < 1)
 			obj_col[++OBJ_ID] = new Power_Up_Object(OBJ_ID, Math.random()*CONST.MAP_WIDTH, Math.random()*CONST.MAP_HEIGHT, (Math.random()-0.5)*0.1, (Math.random()-0.5)*0.1, Number(u));
 	}
 	for (var i = 0, len = obj_ids_to_del.length; i < len; i++) {
